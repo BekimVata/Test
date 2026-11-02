@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Banians Office · Log in</title>
+<style>
+:root{--bg:#15110f;--panel:#211a17;--line:#3d302a;--ink:#efe6d8;--muted:#a8998a;--red:#d21f2e;--gold:#e0b341;color-scheme:dark}
+*{box-sizing:border-box}
+html,body{height:100%;margin:0;background:var(--bg);color:var(--ink);font:15px/1.5 system-ui,-apple-system,"Segoe UI",sans-serif}
+body{display:grid;place-items:center;padding:16px}
+form{width:min(360px,100%);background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:22px;display:flex;flex-direction:column;gap:12px}
+h1{margin:0;font:700 24px "Courier New",monospace}
+h1 span{color:var(--red)}
+p{margin:0;color:var(--muted);font-size:14px}
+label{font-size:13px;color:var(--muted)}
+input{width:100%;font:16px system-ui;padding:11px 12px;border-radius:8px;border:1px solid var(--line);background:#15110f;color:var(--ink)}
+input:focus-visible,button:focus-visible{outline:2px solid var(--gold);outline-offset:2px}
+button{font:600 15px system-ui;padding:11px;border-radius:8px;border:0;background:var(--red);color:#fff;cursor:pointer}
+.err{color:#ff9a9a;font-size:13.5px}
+</style>
+</head>
+<body>
+<form method="post" action="/login">
+  <h1>Zyra e <span>Shqiponjës</span></h1>
+  <p>The Banians office. Enter the password you chose when you created the server.</p>
+  <p class="err" id="err" hidden>That password didn't match. Try again.</p>
+  <label for="pw">Office password</label>
+  <input id="pw" name="password" type="password" autocomplete="current-password" required autofocus>
+  <button type="submit">Open the office</button>
+</form>
+<script>if (location.search.includes('wrong')) document.getElementById('err').hidden = false;</script>
+</body>
+</html>

@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Banians Office · Settings</title>
+<style>
+:root{--bg:#15110f;--panel:#211a17;--panel-2:#2a211d;--line:#3d302a;--ink:#efe6d8;--muted:#a8998a;--red:#d21f2e;--gold:#e0b341;--good:#6fbf73;--crit:#ef5a5a;color-scheme:dark}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.5 system-ui,-apple-system,"Segoe UI",sans-serif}
+body{padding:16px 16px 48px}
+.wrap{max-width:720px;margin:0 auto;display:flex;flex-direction:column;gap:14px}
+header{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap}
+h1{margin:0;font:700 24px "Courier New",monospace}
+h1 span{color:var(--red)}
+a{color:var(--gold)}
+section{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:16px;display:flex;flex-direction:column;gap:10px}
+h2{margin:0;font-size:17px;display:flex;justify-content:space-between;gap:10px;align-items:baseline}
+h2 .st{font-size:12.5px;font-weight:500;color:var(--muted)}
+h2 .st.ok{color:var(--good)} h2 .st.bad{color:var(--crit)}
+ol{margin:0;padding-left:20px;color:var(--muted);font-size:14px;display:flex;flex-direction:column;gap:4px}
+ol b{color:var(--ink)}
+label{font-size:13px;color:var(--muted)}
+input{width:100%;font:15px ui-monospace,Menlo,monospace;padding:10px 12px;border-radius:8px;border:1px solid var(--line);background:#15110f;color:var(--ink)}
+input:focus-visible,button:focus-visible{outline:2px solid var(--gold);outline-offset:2px}
+.saved{font-size:12.5px;color:var(--muted)}
+.row{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px}
+@media (max-width:520px){.row{grid-template-columns:1fr}}
+.code{font:700 26px ui-monospace,Menlo,monospace;letter-spacing:4px;color:var(--gold);background:var(--panel-2);border-radius:8px;padding:8px 12px;display:inline-block}
+.bar{position:sticky;bottom:0;display:flex;gap:10px;flex-wrap:wrap;background:var(--bg);padding:10px 0;border-top:1px solid var(--line)}
+button{font:600 15px system-ui;padding:11px 16px;border-radius:8px;border:1px solid var(--line);background:var(--panel-2);color:var(--ink);cursor:pointer}
+button.primary{background:var(--red);border-color:var(--red);color:#fff}
+.msg{font-size:14px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header><h1>Office <span>settings</span></h1><a href="/">Back to the office</a></header>
+  <p class="msg" id="topmsg" style="margin:0;color:var(--muted)">Paste each key once, then press <b>Save and test</b>. Keys stay on your server and are never shown again in full.</p>
+
+  <section id="s-anthropic">
+    <h2>1 · Claude (the agents' brains) <span class="st" data-st="anthropic"></span></h2>
+    <ol><li>Open <b>console.anthropic.com</b> and sign in.</li><li>Billing: add a card and about £10 of credit. Set a monthly limit.</li><li>API keys: <b>Create key</b>, name it "Banians office", copy it.</li></ol>
+    <label for="anthropicKey">Anthropic API key</label><input id="anthropicKey" autocomplete="off" spellcheck="false" placeholder="sk-ant-…">
+    <span class="saved" data-saved="anthropic"></span>
+  </section>
+
+  <section id="s-ideogram">
+    <h2>2 · Ideogram (the designs) <span class="st" data-st="ideogram"></span></h2>
+    <ol><li>Open <b>ideogram.ai/platform</b> (or tap API in the Ideogram menu).</li><li>Billing: add a card and $10–15 of credit. Leave auto top-up off.</li><li>API Keys: <b>Create key</b>. It's shown only once, so copy it now.</li></ol>
+    <label for="ideogramKey">Ideogram API key</label><input id="ideogramKey" autocomplete="off" spellcheck="false">
+    <span class="saved" data-saved="ideogram"></span>
+  </section>
+
+  <section id="s-printify">
+    <h2>3 · Printify (products and Etsy) <span class="st" data-st="printify"></span></h2>
+    <ol><li>In Printify, open your account menu, then <b>Connections</b>.</li><li>Under API tokens, <b>Generate</b> a token named "Banians office" with all scopes, and copy it.</li><li>Your Etsy shop must already be connected under My stores (you've done this).</li></ol>
+    <label for="printifyToken">Printify API token</label><input id="printifyToken" autocomplete="off" spellcheck="false">
+    <span class="saved" data-saved="printify"></span>
+  </section>
+
+  <section id="s-telegram">
+    <h2>4 · Telegram (iPhone approvals) <span class="st" data-st="telegram"></span></h2>
+    <ol><li>In Telegram, search for <b>@BotFather</b> (blue tick) and press Start.</li><li>Send <b>/newbot</b>. Name it "Banians Office", then pick a username ending in "bot", e.g. banians_office_bot.</li><li>BotFather replies with a token like 123456:ABC…. Copy it and paste it below, then save.</li><li>Open your new bot in Telegram, press Start, and send this pairing code:</li></ol>
+    <div><span class="code" id="pairCode">––––––</span> <span class="saved" id="paired"></span></div>
+    <label for="telegramToken">Telegram bot token</label><input id="telegramToken" autocomplete="off" spellcheck="false">
+    <span class="saved" data-saved="telegram"></span>
+  </section>
+
+  <section>
+    <h2>5 · Money</h2>
+    <div class="row">
+      <div><label for="dailyCapGBP">Daily AI cap (£)</label><input id="dailyCapGBP" type="number" min="0.5" max="50" step="0.5"></div>
+      <div><label for="priceSweatshirt">Sweatshirt price (£)</label><input id="priceSweatshirt" type="number" min="5" step="0.01"></div>
+      <div><label for="priceMug">Mug price (£)</label><input id="priceMug" type="number" min="3" step="0.01"></div>
+    </div>
+    <span class="saved">The eagle stops all paid work for the day when the cap is reached. Prices are in your Etsy shop currency.</span>
+  </section>
+
+  <section>
+    <h2>6 · Office password <span class="st">optional</span></h2>
+    <label for="newPassword">New password (leave empty to keep the current one)</label><input id="newPassword" type="password" autocomplete="new-password">
+  </section>
+
+  <div class="bar"><button class="primary" id="save">Save and test</button><button id="test">Test again</button></div>
+  <p class="msg" id="msg"></p>
+</div>
+<script>
+const $ = id => document.getElementById(id);
+async function api(p, body) {
+  const r = await fetch(p, body ? { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) } : {});
+  if (r.status === 401) { location.href = '/login'; throw new Error('login'); }
+  return r.json();
+}
+function show(c) {
+  for (const k of ['anthropic', 'ideogram', 'printify', 'telegram']) {
+    const el = document.querySelector(`[data-saved="${k}"]`); el.textContent = c.keys[k] ? `Saved: ${c.keys[k]}` : 'Not added yet';
+  }
+  $('pairCode').textContent = c.pairCode;
+  $('paired').textContent = c.telegramPaired ? 'Paired ✓' : 'Not paired yet';
+  $('dailyCapGBP').value = c.dailyCapGBP;
+  $('priceSweatshirt').value = (c.prices.sweatshirt / 100).toFixed(2);
+  $('priceMug').value = (c.prices.mug / 100).toFixed(2);
+}
+async function runTests() {
+  $('msg').textContent = 'Testing connections…';
+  document.querySelectorAll('[data-st]').forEach(e => { e.textContent = 'testing…'; e.className = 'st'; });
+  const t = await api('/api/test', {});
+  for (const [k, v] of Object.entries(t)) { const e = document.querySelector(`[data-st="${k}"]`); e.textContent = v.ok ? '✓ ' + v.msg : '✗ ' + v.msg; e.className = 'st ' + (v.ok ? 'ok' : 'bad'); }
+  const good = Object.values(t).filter(v => v.ok).length;
+  $('msg').textContent = good === 4 ? 'All four connected. Go back to the office and press Start first batch.' : `${good} of 4 connected. Fix the ones marked ✗.`;
+  const s = await api('/api/state'); show(s.config);
+}
+$('save').onclick = async () => {
+  const body = {};
+  for (const k of ['anthropicKey', 'ideogramKey', 'printifyToken', 'telegramToken', 'newPassword']) if ($(k).value.trim()) body[k] = $(k).value.trim();
+  body.dailyCapGBP = $('dailyCapGBP').value; body.priceSweatshirt = $('priceSweatshirt').value; body.priceMug = $('priceMug').value;
+  const r = await api('/api/settings', body);
+  if (r.error) { $('msg').textContent = r.error; return; }
+  for (const k of ['anthropicKey', 'ideogramKey', 'printifyToken', 'telegramToken', 'newPassword']) $(k).value = '';
+  show(r.config); runTests();
+};
+$('test').onclick = runTests;
+api('/api/state').then(s => show(s.config));
+</script>
+</body>
+</html>

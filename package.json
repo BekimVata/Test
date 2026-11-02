@@ -1,0 +1,11 @@
+{
+  "name": "banians-office",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Pixel-art AI office for the Banians Etsy shop: Ideogram designs, Claude checks, Telegram approvals, Printify publishing.",
+  "scripts": {
+    "start": "node app/server.js",
+    "practice": "MOCK=1 INSECURE_COOKIE=1 node app/server.js"
+  },
+  "engines": { "node": ">=22" }
+}
