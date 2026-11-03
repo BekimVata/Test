@@ -20,6 +20,18 @@ const { BRAND, DIRECTIONS, colourway } = require('./briefs');
 
 const productWord = k => k === 'hoodie' ? 'hoodie' : 'Christmas jumper';
 const SLOTS = ['09:00', '12:30', '17:00', '19:30', '21:00']; // UK evening is Pinterest's busiest time
+// Who wears it, in turn (3 Nov: Bekim asked for more men in the adverts). Mixed ages and backgrounds.
+const MODELS = [
+  'a stylish man in his late twenties',
+  'a stylish woman in her thirties',
+  'a bearded man in his thirties',
+  'a couple, a man and a woman, both wearing the same design',
+  'a man in his forties with a relaxed, confident look',
+  'two male friends, one wearing the garment, laughing under the stars',
+  'a young woman in her twenties',
+  'a man in his twenties with an urban streetwear look'
+];
+const modelFor = it => MODELS[(it.id * 5 + (it.round || 1)) % MODELS.length];
 
 function settings() {
   const c = config.load();
@@ -129,7 +141,7 @@ Return JSON only:
  "pinDescription": "Pinterest description, 250 to 450 characters, natural sentences with search phrases people use for Christmas jumpers and sci-fi gifts, ending with 'Free UK delivery.'",
  "keywords": ["6 Pinterest search phrases"],
  "caption": "TikTok and Instagram caption under 220 characters plus 6 to 8 relevant hashtags at the end",
- "scene": "one sentence: the setting for a lifestyle photo of an adult wearing the ${productWord(it.productKind)}, in the Banians world of starry skies meeting nature (snowy pines, mountains, frozen lakes, aurora, a cosy cabin at night)",
+ "scene": "one sentence: the setting for a lifestyle photo of ${modelFor(it)} wearing the ${productWord(it.productKind)} (keep exactly that person), in the Banians world of starry skies meeting nature (snowy pines, mountains, frozen lakes, aurora, a cosy cabin at night)",
  "motion": "one sentence: a slow, subtle camera move or natural motion for a 5-second clip of that photo (snow falling, stars twinkling, a slow push-in)"}`
     });
     store.updateItem(it, { copy });
@@ -138,6 +150,7 @@ Return JSON only:
     store.act('ilir', 'handoff', { to: 'lule', icon: 'doc' });
   }
 
+  if (!it.model) store.updateItem(it, { model: modelFor(it) });
   const banner = kitFile('banner'), logo = kitFile('logo');
   const attempt = (it.attempts || 0) + 1;
   const fix = it.feedback ? ` Important fix from review: ${it.feedback}` : '';
@@ -147,7 +160,7 @@ Return JSON only:
   const lifestyle = await ideogram.edit({
     images: banner ? [it.mockup, banner] : [it.mockup],
     size: '1152x2048', quality: 'medium', fileName: `promo-${it.id}-life-${attempt}.png`, agent: 'Lule',
-    prompt: `Image 1 is the exact product: a ${c.garment} ${productWord(it.productKind)} with a printed design. Create a premium, realistic fashion photograph of a stylish adult wearing exactly this garment. Keep the garment colour and the printed artwork exactly as in image 1: same shapes, same colours, same lettering, not redrawn, not mirrored, not distorted. ${sideNote} Setting: ${it.copy.scene}${banner ? ' Use image 2 only for mood and colour (midnight-blue cosmic sky meeting dark pine nature); do not copy any text from it.' : ''} Cinematic night light, natural skin and hands, shallow depth of field. No text, no logos, no watermark.${fix}`
+    prompt: `Image 1 is the exact product: a ${c.garment} ${productWord(it.productKind)} with a printed design. Create a premium, realistic fashion photograph of ${it.model || modelFor(it)} wearing exactly this garment. Keep the garment colour and the printed artwork exactly as in image 1: same shapes, same colours, same lettering, not redrawn, not mirrored, not distorted. ${sideNote} Setting: ${it.copy.scene}${banner ? ' Use image 2 only for mood and colour (midnight-blue cosmic sky meeting dark pine nature); do not copy any text from it.' : ''} Cinematic night light, natural skin and hands, shallow depth of field. No text, no logos, no watermark.${fix}`
   });
   store.act('lule', 'work', { label: 'Pinterest advert' });
   const pin = await ideogram.edit({
