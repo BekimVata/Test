@@ -3,6 +3,9 @@
 // Christmas reimagined through a futuristic lens. Central motif: three geometric triangles forming a tree.
 // Palette: deep midnight blue, rich navy, cosmic black, brilliant white, subtle celestial highlights.
 
+// The Banians brand, year-round. Collections change with the seasons; the identity doesn't.
+const BRAND = 'Banians is a year-round UK clothing brand whose designs blend cosmic wonder (stars, constellations, galaxies, the unknown) with the beauty of nature, in bold, minimal, premium artwork people are proud to wear. It is for everyone: never describe it as for men, women or any one group. New collections arrive through the year (Christmas now, then Halloween, Valentine\'s Day and everyday pieces), so never describe Banians as a Christmas shop.';
+
 const BASE = 'Premium minimalist streetwear graphic for print-on-demand apparel. Crisp vector-like edges, flat solid colours suitable for screen printing, no gradients that band, no photo textures, no mockup, no clothing, no frame, no background scene. Centred, isolated on a fully transparent background with generous empty space. Original artwork: no logos, brands, film or game references, no cartoon aliens, nothing childish.';
 const PALETTE = 'brilliant white, ice blue (#A9C6D9) and pale silver, with tiny touches of soft violet starlight (#B8A9E8)';
 
@@ -57,4 +60,4 @@ function designPrompt(key, product, feedback) {
 // Merge the collection defaults into each direction for the rest of the office.
 for (const d of Object.values(DIRECTIONS)) Object.assign(d, { look: COLLECTION.look, shirtColors: COLLECTION.shirtColors, mugBackground: COLLECTION.mugBackground }, d);
 
-module.exports = { DIRECTIONS, COLLECTION, EMBLEM_PROMPT, designPrompt };
+module.exports = { BRAND, DIRECTIONS, COLLECTION, EMBLEM_PROMPT, designPrompt };

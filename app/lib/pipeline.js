@@ -11,7 +11,7 @@ const claude = require('./anthropic');
 const ideogram = require('./ideogram');
 const printify = require('./printify');
 const telegram = require('./telegram');
-const { DIRECTIONS, EMBLEM_PROMPT, designPrompt } = require('./briefs');
+const { BRAND, COLLECTION, DIRECTIONS, EMBLEM_PROMPT, designPrompt } = require('./briefs');
 
 const ACTIONABLE = ['queued', 'approved_design', 'approved_publish'];
 const EST = { queued: 0.12, approved_design: 0.02, approved_publish: 0 }; // £ per step, for the cap
@@ -114,7 +114,7 @@ async function designStep(it) {
     store.act('drita', 'work', { label: 'Researching buyers' });
     const r = await claude.askJSON({
       model: 'fast', agent: 'Drita', what: 'trend research', mockKind: 'research', maxTokens: 500,
-      content: `You research Etsy buyers for a UK print-on-demand shop called ${cfg.shopName} (premium cosmic, futuristic streetwear: Christmas reimagined through space, constellations and alien-inspired symbols; for anyone who wants to look distinctive, mostly men). The design is "${d.name}": ${d.look}, slogan "${d.text}", on a ${it.product}. Return JSON only: {"audience": "who buys this, one sentence", "angle": "the gift angle that sells it, one sentence", "keywords": ["8 Etsy search phrases buyers really type, each under 20 characters"]}`
+      content: `You research Etsy buyers for a UK print-on-demand shop. ${BRAND} Current collection: ${COLLECTION.name}. The design is "${d.name}": ${d.look}, slogan "${d.text}", on a ${it.product}. Return JSON only: {"audience": "who buys this, one sentence, inclusive, not limited to one gender", "angle": "the gift angle that sells it, one sentence", "keywords": ["8 Etsy search phrases buyers really type, each under 20 characters"]}`
     });
     store.updateItem(it, { research: r });
     store.act('drita', 'idle');
@@ -180,8 +180,8 @@ async function writeListing(it, kind) {
   const pc = PRODUCT_COPY[kind] || { what: kind, start: '', honest: 'printed' };
   const L = await claude.askJSON({
     model: 'fast', agent: 'Teuta', what: 'listing copy', mockKind: 'listing', maxTokens: 900,
-    content: `Write an Etsy listing for ${cfg.shopName}, a UK shop. Product: ${pc.what}, with the "${d.name}" Christmas tree design (${d.look}), slogan "${d.text}". Buyer: ${it.research?.audience || 'gift buyers'}. Angle: ${it.research?.angle || ''}. Keywords: ${(it.research?.keywords || []).join(', ')}.
-Rules: British spelling. Title under 140 characters, starting with "${pc.start}", then the strongest search phrases. Say honestly in the description that it is ${pc.honest}. No ALL CAPS, no emoji, no brand names. Description: 3 short paragraphs, warm and stylish, no claims about materials, sizing or care (product details are added separately). Exactly 13 tags, each under 20 characters, lowercase, no punctuation except spaces.
+    content: `Write an Etsy listing for ${cfg.shopName}. ${BRAND} This item is from the ${COLLECTION.name} collection. Product: ${pc.what}, with the "${d.name}" Christmas tree design (${d.look}), slogan "${d.text}". Buyer: ${it.research?.audience || 'gift buyers'}. Angle: ${it.research?.angle || ''}. Keywords: ${(it.research?.keywords || []).join(', ')}.
+Rules: British spelling. Title under 140 characters, starting with "${pc.start}", then the strongest search phrases. Say honestly in the description that it is ${pc.honest}. No ALL CAPS, no emoji, no brand names, and never say it is for men, women or any one group. Description: 3 short paragraphs, warm and stylish, no claims about materials, sizing or care (product details are added separately). Exactly 13 tags, each under 20 characters, lowercase, no punctuation except spaces.
 Return JSON only: {"title": "...", "description": "...", "tags": ["..."]}`
   });
   const tags = [...new Set((L.tags || []).map(t => String(t).toLowerCase().replace(/[^a-z0-9 '-]/g, '').trim().slice(0, 20)).filter(Boolean))].slice(0, 13);
@@ -261,13 +261,13 @@ async function makeKit(it) {
   const kit = { files: [] };
   store.act('arben', 'work', { label: 'Designing logo' });
   const logo = await ideogram.generate({
-    prompt: `Logo for "${cfg.shopName.toUpperCase()}", a premium cosmic streetwear brand. The full word "${cfg.shopName.toUpperCase()}" in bold, distinctive, sophisticated futuristic lettering in brilliant white, with a subtle celestial glow or a few tiny stars integrated into the letters, slightly extraterrestrial but clean and readable. Background: deep midnight blue (#0B1530) fading into cosmic black with a faint scattering of stars. Mysterious, modern, premium, not cartoonish. Centred, square composition, works as a small shop icon. No other text.`,
+    prompt: `Logo for "${cfg.shopName.toUpperCase()}", a premium year-round brand blending cosmic wonder with the beauty of nature. The full word "${cfg.shopName.toUpperCase()}" in bold, distinctive, sophisticated futuristic lettering in brilliant white, with a subtle celestial glow or a few tiny stars integrated into the letters, slightly extraterrestrial but clean and readable. Background: deep midnight blue (#0B1530) fading into cosmic black with a faint scattering of stars. Mysterious, modern, premium, not cartoonish. Centred, square composition, works as a small shop icon. No other text.`,
     size: '1024x1024', background: 'opaque', fileName: `kit-logo-${it.id}.png`, agent: 'Arben'
   });
   kit.files.push({ name: 'Shop logo (upload as your Etsy shop icon)', file: logo.file });
   store.act('arben', 'work', { label: 'Designing banner' });
   const banner = await ideogram.generate({
-    prompt: `Wide banner for the "${cfg.shopName.toUpperCase()}" streetwear shop. A beautiful midnight-blue universe: deep navy and cosmic black, subtle stars, a faint distant galaxy and soft atmospheric light giving depth and mystery. In the centre, the name "${cfg.shopName.toUpperCase()}" in bold futuristic brilliant-white lettering with a subtle celestial glow, the clear centrepiece. Premium futuristic streetwear brand, not a Christmas shop. No other text.`,
+    prompt: `Wide banner for the "${cfg.shopName.toUpperCase()}" streetwear shop. A beautiful midnight-blue universe meeting nature: deep navy and cosmic black sky with subtle stars and a faint distant galaxy, above the dark silhouette of a mountain ridge and pine forest, soft atmospheric light giving depth and mystery. In the centre, the name "${cfg.shopName.toUpperCase()}" in bold futuristic brilliant-white lettering with a subtle celestial glow, the clear centrepiece. Premium, timeless, not seasonal. No other text.`,
     size: '2880x1440', background: 'opaque', fileName: `kit-banner-${it.id}.png`, agent: 'Arben'
   });
   kit.files.push({ name: 'Shop banner (Etsy cover photo)', file: banner.file });
@@ -275,7 +275,7 @@ async function makeKit(it) {
   store.act('teuta', 'work', { label: 'Writing shop texts' });
   const t = await claude.askJSON({
     model: 'fast', agent: 'Teuta', what: 'shop texts', mockKind: 'kit', maxTokens: 1200,
-    content: `Write Etsy shop texts for ${cfg.shopName}, a new UK premium cosmic streetwear brand: hoodies and jumpers with futuristic, mysterious, space-inspired designs. The first drop is a Cosmic Christmas collection: Christmas trees made of three geometric triangles, constellations and alien-inspired lettering. The wearer should feel confident, distinctive and part of something unique. Be honest: designs are created with AI tools from our own concepts and approved by hand, products are made to order by a print partner. British spelling, warm and confident, no emoji.
+    content: `Write Etsy shop texts for ${cfg.shopName}. ${BRAND} The current collection is ${COLLECTION.name}; mention it only as the latest collection. Be honest: designs are our own concepts, created with AI image tools and approved by hand; items are made to order by a print partner, with free UK delivery. British spelling, warm and confident, no emoji.
 Return JSON only: {"shopTitle": "under 55 characters", "announcement": "2-3 sentences", "about": "a short About section, 2 paragraphs", "faq": ["3 short Q&A strings about delivery times, returns of made-to-order items, and sizing"]}`
   });
   kit.texts = t;
