@@ -1,51 +1,60 @@
-// The four Christmas tree directions you chose. Each becomes a sweatshirt and a mug.
-const BASE = 'Flat vector graphic for print-on-demand apparel. Clean crisp edges, solid flat colours, no gradients, no shadows, no texture, no mockup, no clothing, no frame, no background scene. Centered, isolated on a fully transparent background with generous empty space around the artwork.';
+// Banians creative direction (from Bekim, 3 Nov 2026):
+// cosmic aesthetics + futuristic design + mysterious symbolism + bold minimalist streetwear.
+// Christmas reimagined through a futuristic lens. Central motif: three geometric triangles forming a tree.
+// Palette: deep midnight blue, rich navy, cosmic black, brilliant white, subtle celestial highlights.
+
+const BASE = 'Premium minimalist streetwear graphic for print-on-demand apparel. Crisp vector-like edges, flat solid colours suitable for screen printing, no gradients that band, no photo textures, no mockup, no clothing, no frame, no background scene. Centred, isolated on a fully transparent background with generous empty space. Original artwork: no logos, brands, film or game references, no cartoon aliens, nothing childish.';
+const PALETTE = 'brilliant white, ice blue (#A9C6D9) and pale silver, with tiny touches of soft violet starlight (#B8A9E8)';
+
+const COLLECTION = {
+  name: 'Cosmic Christmas',
+  look: 'mysterious, premium, futuristic streetwear; Christmas reimagined as a transmission from another civilisation',
+  shirtColors: ['Navy', 'Black', 'Dark Heather'],
+  mugBackground: '#0B1530'
+};
 
 const DIRECTIONS = {
-  gilded: {
-    name: 'Gilded outline',
-    text: 'EVERGREEN',
-    palette: 'antique gold #C8A456 only',
-    shirtColors: ['Forest Green', 'Forest', 'Dark Green', 'Military Green', 'Black'],
-    mugBackground: '#1F3D2B',
-    look: 'quiet, premium, minimalist',
-    prompt: 'A minimalist Christmas tree emblem made of three stacked triangular tiers, each tier drawn as an elegant thin antique-gold (#C8A456) outline, the tiers overlapping like a stylised pine. A small four-pointed gold star on top and a short gold trunk. Beneath the tree, the single word "EVERGREEN" in small, widely letter-spaced uppercase geometric sans-serif, antique gold. Premium, understated, like a luxury gift label.'
+  signal: {
+    name: 'The Signal',
+    text: '"MERRY CHRISTMAS" in futuristic alien-inspired lettering, plus "2026" in futuristic numerals',
+    textRule: 'The words MERRY CHRISTMAS and the year 2026 must both be present and recognisable, even though they are drawn in stylised futuristic, alien-inspired lettering. No other words.',
+    palette: PALETTE,
+    prompt: `A bold back-print statement artwork. At the centre, a striking Christmas tree symbol made of exactly three stacked geometric triangles in glowing white line work, each triangle slightly offset like a transmission from deep space, a small four-pointed star at the apex. Fine constellation lines and tiny stars connect the triangles. Arched above the symbol, the words "MERRY CHRISTMAS" in a unique futuristic alien-inspired typeface, angular and geometric, like a language from another civilisation yet still readable. Below, the year "2026" in futuristic glyph-like numerals. Subtle orbit rings and coordinate marks around the composition. Colours: ${PALETTE}.`
   },
-  tonal: {
-    name: 'Tonal pines',
-    text: "SEASON'S FINEST",
-    palette: 'deep evergreen #1F3D2B, pine #2E5E43, sage #6E9475, cranberry #8E1B2E',
-    shirtColors: ['Sand', 'Natural', 'Oatmeal', 'Cream', 'Ash', 'White'],
-    mugBackground: '#E9E1D1',
-    look: 'soft, modern, Scandinavian',
-    prompt: 'A modern geometric Christmas tree made of three solid stacked triangles: the bottom tier deep evergreen (#1F3D2B), the middle tier pine green (#2E5E43), the top tier soft sage (#6E9475). A small cranberry red (#8E1B2E) dot as the star on top, and a tiny brown trunk. Beneath it, the words "SEASON\'S FINEST" in small, widely letter-spaced uppercase sans-serif, deep evergreen. Scandinavian, calm, modern.'
+  starmap: {
+    name: 'Star Map 2026',
+    text: '"25.12.2026" in futuristic numerals',
+    textRule: 'The only text is the date 25.12.2026 (or 25 12 2026) in futuristic numerals, recognisable. No other words.',
+    palette: PALETTE,
+    prompt: `A minimalist celestial chart. A Christmas tree drawn as a constellation: three stacked triangles formed by fine white lines joining bright star points of different sizes, the top star larger and radiant. Around it a thin circular star-chart ring with small tick marks and tiny glyphs. Beneath, the date "25.12.2026" in thin futuristic numerals with wide spacing. Elegant, precise, like an observatory instrument. Colours: ${PALETTE}.`
   },
-  goldlines: {
-    name: 'Gold lines',
-    text: 'GOOD TIDINGS',
-    palette: 'warm gold #D4B26A and cream #EDE6D6',
-    shirtColors: ['Maroon', 'Cardinal Red', 'Cardinal', 'Garnet', 'Burgundy', 'Black'],
-    mugBackground: '#7A1626',
-    look: 'festive, elegant, art deco',
-    prompt: 'A Christmas tree built entirely from nine horizontal warm-gold (#D4B26A) lines with rounded ends, each line wider than the one above, with small gaps that suggest three tiers of a pine tree. A small four-pointed gold star on top. Beneath it, the words "GOOD TIDINGS" in small, widely letter-spaced uppercase sans-serif, cream (#EDE6D6). Elegant, festive, art deco feel.'
+  firstcontact: {
+    name: 'First Contact',
+    text: '"MERRY CHRISTMAS" in an alien-inspired script',
+    textRule: 'The words MERRY CHRISTMAS must be present and recognisable, written in a stylised alien-inspired script. No other words.',
+    palette: PALETTE,
+    prompt: `A mysterious monolith-like emblem: three tall geometric triangles stacked into a Christmas tree silhouette, the lowest triangle casting a beam of fine parallel light lines downward, as if the tree were a portal or beacon arriving from space. A thin ring orbits the middle triangle. Small scattered stars and two or three tiny unknown symbols nearby. Underneath, "MERRY CHRISTMAS" in an angular alien-inspired script, characters built from triangles and dots, still readable. Colours: ${PALETTE}.`
   },
-  split: {
-    name: 'Split tiers',
-    text: 'MERRY · MMXXVI',
-    palette: 'emerald #2F7A55, berry red #B3263A, gold #D4B26A',
-    shirtColors: ['Black', 'Charcoal', 'Dark Heather'],
-    mugBackground: '#1E1E1E',
-    look: 'bold, graphic, streetwear',
-    prompt: 'A bold graphic Christmas tree made of three separate solid emerald green (#2F7A55) triangles stacked with clear gaps between them, each wider than the one above. A gold (#D4B26A) four-pointed star on top. A few tiny round berry-red (#B3263A) and gold baubles. Beneath it, the text "MERRY · MMXXVI" in small, widely letter-spaced uppercase sans-serif, gold. Streetwear, confident, graphic.'
+  transmission: {
+    name: 'Transmission',
+    text: '"MERRY CHRISTMAS" and "MMXXVI"',
+    textRule: 'The words MERRY CHRISTMAS and MMXXVI must be present and recognisable, in futuristic lettering. No other words.',
+    palette: PALETTE,
+    prompt: `A bold minimalist streetwear graphic. Three solid white geometric triangles stacked into a Christmas tree, with clean negative-space gaps, centred inside a thin circle like a mission patch from an unknown space programme. Around the circle edge, small futuristic glyph marks. Below the patch, "MERRY CHRISTMAS" in wide, heavy futuristic sans-serif capitals, and under it "MMXXVI" in small spaced letters. Confident, graphic, premium. Colours: ${PALETTE}.`
   }
 };
+
+// The small chest emblem used on the front of every hoodie (the big artwork goes on the back).
+const EMBLEM_PROMPT = `A small minimalist chest emblem: three stacked geometric triangles forming a Christmas tree in brilliant white line work, a tiny four-pointed star on top, two tiny orbiting dots. No text at all. Bold enough to read when printed 8cm wide. ${BASE}`;
 
 function designPrompt(key, product, feedback) {
   const d = DIRECTIONS[key];
   let p = `${d.prompt} ${BASE}`;
-  if (product === 'mug') p += ' Compact composition that reads well small, on a mug.';
   if (feedback) p += ` Important fix from review: ${feedback}`;
   return p;
 }
 
-module.exports = { DIRECTIONS, designPrompt };
+// Merge the collection defaults into each direction for the rest of the office.
+for (const d of Object.values(DIRECTIONS)) Object.assign(d, { look: COLLECTION.look, shirtColors: COLLECTION.shirtColors, mugBackground: COLLECTION.mugBackground }, d);
+
+module.exports = { DIRECTIONS, COLLECTION, EMBLEM_PROMPT, designPrompt };

@@ -11,7 +11,7 @@ const claude = require('./anthropic');
 const ideogram = require('./ideogram');
 const printify = require('./printify');
 const telegram = require('./telegram');
-const { DIRECTIONS, designPrompt } = require('./briefs');
+const { DIRECTIONS, EMBLEM_PROMPT, designPrompt } = require('./briefs');
 
 const ACTIONABLE = ['queued', 'approved_design', 'approved_publish'];
 const EST = { queued: 0.12, approved_design: 0.02, approved_publish: 0 }; // £ per step, for the cap
@@ -114,7 +114,7 @@ async function designStep(it) {
     store.act('drita', 'work', { label: 'Researching buyers' });
     const r = await claude.askJSON({
       model: 'fast', agent: 'Drita', what: 'trend research', mockKind: 'research', maxTokens: 500,
-      content: `You research Etsy buyers for a UK print-on-demand shop called ${cfg.shopName} (stylish, modern Christmas designs anyone can relate to, aimed mostly at men). The design is "${d.name}": ${d.look}, slogan "${d.text}", on a ${it.product}. Return JSON only: {"audience": "who buys this, one sentence", "angle": "the gift angle that sells it, one sentence", "keywords": ["8 Etsy search phrases buyers really type, each under 20 characters"]}`
+      content: `You research Etsy buyers for a UK print-on-demand shop called ${cfg.shopName} (premium cosmic, futuristic streetwear: Christmas reimagined through space, constellations and alien-inspired symbols; for anyone who wants to look distinctive, mostly men). The design is "${d.name}": ${d.look}, slogan "${d.text}", on a ${it.product}. Return JSON only: {"audience": "who buys this, one sentence", "angle": "the gift angle that sells it, one sentence", "keywords": ["8 Etsy search phrases buyers really type, each under 20 characters"]}`
     });
     store.updateItem(it, { research: r });
     store.act('drita', 'idle');
@@ -160,9 +160,9 @@ async function inspect(it, img) {
     system: 'You are the strict but fair art director of a print-on-demand shop. You only pass designs that are ready to print and sell.',
     content: [
       { type: 'image', source },
-      { type: 'text', text: `Inspect this ${it.product} design. Brief: "${d.name}", palette ${d.palette}, look: ${d.look}. The ONLY text must read exactly: "${d.text}".
-Check: 1) text spelled exactly right and nothing else written; 2) colours match the palette; 3) artwork is isolated, no shirt, mockup, frame or background scene; 4) no brand logos, trademarks or known characters; 5) printable: no hairlines too thin to print, nothing tiny or cut off; 6) does it look stylish and sellable.
-Return JSON only: {"ok": true or false, "score": 1-10, "problems": ["short problems, empty if none"], "fix": "one sentence telling the designer exactly what to change"}. ok must be false if the text is wrong or score is below 7.` }
+      { type: 'text', text: `Inspect this ${it.product} design. Brief: "${d.name}", palette ${d.palette}, look: ${d.look}. Text rule: ${d.textRule || 'The only text must read exactly: "' + d.text + '".'}
+Check: 1) the text rule above is met and every word is spelled right; 2) colours match the palette; 3) artwork is isolated, no shirt, mockup, frame or background scene; 4) no brand logos, trademarks or known characters; 5) printable: no hairlines too thin to print, nothing tiny or cut off; 6) does it look stylish and sellable.
+Return JSON only: {"ok": true or false, "score": 1-10, "problems": ["short problems, empty if none"], "fix": "one sentence telling the designer exactly what to change"}. ok must be false if the text rule fails or score is below 7.` }
     ]
   });
 }
@@ -189,6 +189,16 @@ Return JSON only: {"title": "...", "description": "...", "tags": ["..."]}`
   return { title: String(L.title || '').slice(0, 140), description: String(L.description || '') + disclosure, tags };
 }
 
+async function ensureEmblem() {
+  if (store.state.emblem) return store.state.emblem;
+  store.act('arben', 'work', { label: 'Designing the chest emblem' });
+  const img = await ideogram.generate({ prompt: EMBLEM_PROMPT, fileName: 'emblem.png', agent: 'Arben' });
+  store.act('arben', 'idle');
+  store.state.emblem = img.file; store.save();
+  store.log('Arben', 'designed the small chest emblem that goes on the front of every hoodie.');
+  return img.file;
+}
+
 async function productStep(it) {
   const d = DIRECTIONS[it.direction];
   const cfg = config.load();
@@ -202,12 +212,14 @@ async function productStep(it) {
     store.log('Teuta', `wrote "${listing.title.slice(0, 70)}" with ${listing.tags.length} tags and the AI disclosure.`);
     store.act('teuta', 'handoff', { to: 'gjergj', icon: 'doc' });
 
+    let emblemFile = null;
+    if (kind === 'hoodie') emblemFile = await ensureEmblem();
     store.act('gjergj', 'work', { label: `Building the ${productName(kind)}` });
     const cat = await printify.catalogFor(kind);
     const details = cat.blueprintDescription ? `\n\nProduct details:\n${cat.blueprintDescription}` : '';
     const prod = await printify.createProduct({
       kind, title: listing.title, description: listing.description + details, tags: listing.tags,
-      imageFile: it.design, colors: kind === 'mug' ? null : d.shirtColors,
+      imageFile: it.design, emblemFile, colors: kind === 'mug' ? null : d.shirtColors,
       background: kind === 'mug' ? d.mugBackground : null
     });
     store.act('gjergj', 'idle');
@@ -249,13 +261,13 @@ async function makeKit(it) {
   const kit = { files: [] };
   store.act('arben', 'work', { label: 'Designing logo' });
   const logo = await ideogram.generate({
-    prompt: `Logo for a modern Christmas and winter apparel brand called "${cfg.shopName}". A minimal emblem of a stylised pine tree made of three stacked triangles in antique gold (#C8A456) above the wordmark "${cfg.shopName.toUpperCase()}" in an elegant, widely letter-spaced geometric sans-serif, antique gold, on a solid deep evergreen (#1F3D2B) background. Flat vector, centered, premium, simple, no other text.`,
+    prompt: `Logo for "${cfg.shopName.toUpperCase()}", a premium cosmic streetwear brand. The full word "${cfg.shopName.toUpperCase()}" in bold, distinctive, sophisticated futuristic lettering in brilliant white, with a subtle celestial glow or a few tiny stars integrated into the letters, slightly extraterrestrial but clean and readable. Background: deep midnight blue (#0B1530) fading into cosmic black with a faint scattering of stars. Mysterious, modern, premium, not cartoonish. Centred, square composition, works as a small shop icon. No other text.`,
     size: '1024x1024', background: 'opaque', fileName: `kit-logo-${it.id}.png`, agent: 'Arben'
   });
   kit.files.push({ name: 'Shop logo (upload as your Etsy shop icon)', file: logo.file });
   store.act('arben', 'work', { label: 'Designing banner' });
   const banner = await ideogram.generate({
-    prompt: `Wide website banner for the "${cfg.shopName}" Etsy shop. A calm minimal winter scene: a row of geometric pine trees made of stacked triangles in deep evergreen (#1F3D2B), pine (#2E5E43) and antique gold (#C8A456) outlines across a soft oatmeal (#E9E1D1) background, with small gold stars. Lots of empty space in the centre. No text. Flat vector, premium, modern.`,
+    prompt: `Wide banner for the "${cfg.shopName.toUpperCase()}" streetwear shop. A beautiful midnight-blue universe: deep navy and cosmic black, subtle stars, a faint distant galaxy and soft atmospheric light giving depth and mystery. In the centre, the name "${cfg.shopName.toUpperCase()}" in bold futuristic brilliant-white lettering with a subtle celestial glow, the clear centrepiece. Premium futuristic streetwear brand, not a Christmas shop. No other text.`,
     size: '2880x1440', background: 'opaque', fileName: `kit-banner-${it.id}.png`, agent: 'Arben'
   });
   kit.files.push({ name: 'Shop banner (Etsy cover photo)', file: banner.file });
@@ -263,7 +275,7 @@ async function makeKit(it) {
   store.act('teuta', 'work', { label: 'Writing shop texts' });
   const t = await claude.askJSON({
     model: 'fast', agent: 'Teuta', what: 'shop texts', mockKind: 'kit', maxTokens: 1200,
-    content: `Write Etsy shop texts for ${cfg.shopName}, a new UK shop selling stylish, modern Christmas and winter print-on-demand apparel and mugs, aimed mostly at men but for anyone. Designs are geometric pine trees in evergreen, cranberry and gold. Be honest: designs are created with AI tools from our own concepts and approved by hand, products are made to order by a print partner. British spelling, warm and confident, no emoji.
+    content: `Write Etsy shop texts for ${cfg.shopName}, a new UK premium cosmic streetwear brand: hoodies and jumpers with futuristic, mysterious, space-inspired designs. The first drop is a Cosmic Christmas collection: Christmas trees made of three geometric triangles, constellations and alien-inspired lettering. The wearer should feel confident, distinctive and part of something unique. Be honest: designs are created with AI tools from our own concepts and approved by hand, products are made to order by a print partner. British spelling, warm and confident, no emoji.
 Return JSON only: {"shopTitle": "under 55 characters", "announcement": "2-3 sentences", "about": "a short About section, 2 paragraphs", "faq": ["3 short Q&A strings about delivery times, returns of made-to-order items, and sizing"]}`
   });
   kit.texts = t;

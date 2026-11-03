@@ -43,17 +43,21 @@ const PRODUCTS = {
   sweatshirt: {
     match: b => (/gildan/i.test(b.brand || '') && /18000/.test(b.model || '')) ? 3 : (/crewneck sweatshirt/i.test(b.title) ? 1 : 0),
     sizes: ['S', 'M', 'L', 'XL', '2XL', '3XL'],
-    placement: { x: 0.5, y: 0.42, scale: 0.62, angle: 0 }
+    placements: [{ position: 'front', use: 'design', x: 0.5, y: 0.42, scale: 0.72, angle: 0 }]
   },
   hoodie: {
     match: b => (/gildan/i.test(b.brand || '') && /18500/.test(b.model || '')) ? 3 : (/pullover hood/i.test(b.title) || /hooded sweatshirt/i.test(b.title) ? 1 : 0),
     sizes: ['S', 'M', 'L', 'XL', '2XL', '3XL'],
-    placement: { x: 0.5, y: 0.38, scale: 0.55, angle: 0 }
+    // Big statement artwork on the back, small emblem on the left chest.
+    placements: [
+      { position: 'back', use: 'design', x: 0.5, y: 0.45, scale: 0.9, angle: 0 },
+      { position: 'front', use: 'emblem', x: 0.72, y: 0.28, scale: 0.22, angle: 0 }
+    ]
   },
   mug: {
     match: b => (/mug/i.test(b.title) && /11\s?oz/i.test(b.title) && !/travel|enamel|color|accent|magic|latte/i.test(b.title)) ? 2 : 0,
     sizes: null,
-    placement: { x: 0.5, y: 0.5, scale: 0.55, angle: 0 }
+    placements: [{ position: 'front', use: 'design', x: 0.5, y: 0.5, scale: 0.55, angle: 0 }]
   }
 };
 
@@ -112,19 +116,30 @@ async function uploadImage(fileName) {
 }
 
 // Creates the product as a draft in Printify (not yet on Etsy). Returns the product with mockup images.
-async function createProduct({ kind, title, description, tags, imageFile, colors, background }) {
+async function createProduct({ kind, title, description, tags, imageFile, emblemFile, colors, background }) {
   const cfg = config.load();
   const shopId = await ensureShop();
   const cat = await catalogFor(kind);
   const variants = chooseVariants(kind, cat, colors);
   if (!variants.length) throw new Error(`No ${kind} variants available in those colours.`);
-  const imageId = await uploadImage(imageFile);
-  const position = variants[0].placeholders.includes('front') ? 'front' : (variants[0].placeholders[0] || 'front');
+  const available = new Set(variants[0].placeholders);
+  const uploads = {};
+  uploads.design = await uploadImage(imageFile);
+  const placeholders = [];
+  for (const pl of PRODUCTS[kind].placements) {
+    let position = pl.position;
+    if (!available.has(position)) {
+      if (pl.use !== 'design') continue;                // skip the emblem if there's no front area
+      position = available.has('front') ? 'front' : [...available][0] || 'front';
+    }
+    let use = pl.use;
+    if (use === 'emblem' && !emblemFile) use = 'design';
+    if (!uploads[use]) uploads[use] = await uploadImage(emblemFile);
+    const { x, y, scale, angle } = pl;
+    placeholders.push({ position, images: [{ id: uploads[use], x, y, scale, angle }] });
+  }
   const price = cfg.prices[kind];
-  const printArea = {
-    variant_ids: variants.map(v => v.id),
-    placeholders: [{ position, images: [{ id: imageId, ...PRODUCTS[kind].placement }] }]
-  };
+  const printArea = { variant_ids: variants.map(v => v.id), placeholders };
   if (background) printArea.background = background;
   const product = await api('POST', `/shops/${shopId}/products.json`, {
     title, description,
