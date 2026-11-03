@@ -30,14 +30,17 @@ const list = r => Array.isArray(r) ? r : (r && Array.isArray(r.data) ? r.data : 
 
 async function shops() { return list(await api('GET', '/shops.json')); }
 
-// Picks the Printify shop that is connected to Etsy.
-async function ensureShop() {
+// Picks the Printify shop that is connected to Etsy. Re-checks every 10 minutes, so if the
+// Etsy connection moves to another Printify store (as happened on 3 Nov) the office follows it.
+let shopCheckedAt = 0;
+async function ensureShop({ force = false } = {}) {
   const cfg = config.load();
-  if (cfg.printifyShopId) return cfg.printifyShopId;
+  if (cfg.printifyShopId && !force && Date.now() - shopCheckedAt < 10 * 60 * 1000) return cfg.printifyShopId;
   const all = await shops();
   if (!all.length) throw new Error('No shops in Printify. In Printify, open My stores and connect Etsy.');
-  const etsy = all.find(s => /etsy/i.test(s.sales_channel || '')) || all[0];
-  config.update({ printifyShopId: String(etsy.id) });
+  const etsy = all.find(s => /etsy/i.test(s.sales_channel || '')) || all.find(s => String(s.id) === String(cfg.printifyShopId)) || all[0];
+  shopCheckedAt = Date.now();
+  if (String(etsy.id) !== String(cfg.printifyShopId)) config.update({ printifyShopId: String(etsy.id) });
   return String(etsy.id);
 }
 
@@ -189,4 +192,4 @@ async function test() {
   return `Connected · ${etsy ? 'Etsy shop "' + etsy.title + '"' : all.length + ' shop(s), none on Etsy yet'}`;
 }
 
-module.exports = { createProduct, publish, test, ensureShop, catalogFor };
+module.exports = { createProduct, publish, test, ensureShop, catalogFor, isNotConnected: e => /8254|not connected to sales channel/i.test(String(e && e.message || e)) };

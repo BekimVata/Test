@@ -211,9 +211,10 @@ async function productStep(it) {
   for (const kind of productsOf(it)) {
     if (made.find(m => m.kind === kind)) continue; // already built (resumes after a restart)
     store.act('teuta', 'work', { label: `Writing the ${productName(kind)} listing` });
-    const listing = await writeListing(it, kind);
+    const kept = (it.keepListings || {})[kind];
+    const listing = kept || await writeListing(it, kind);
     store.act('teuta', 'idle');
-    store.log('Teuta', `wrote "${listing.title.slice(0, 70)}" with ${listing.tags.length} tags and the AI disclosure.`);
+    if (!kept) store.log('Teuta', `wrote "${listing.title.slice(0, 70)}" with ${listing.tags.length} tags and the AI disclosure.`);
     store.act('teuta', 'handoff', { to: 'gjergj', icon: 'doc' });
 
     let emblemFile = null;
@@ -233,6 +234,12 @@ async function productStep(it) {
     store.log('Gjergj', `built the ${productName(kind)} draft: ${prod.variantCount} variants at ${gbp(prod.price)}${prod.cost ? `, cost ${gbp(prod.cost)}, about ${gbp(margin)} before Etsy fees` : ''}.`);
     if (margin !== null && margin < 600) store.log('Agron', `warning: the margin on the ${productName(kind)} is thin. Consider raising its price in Settings.`);
   }
+  if (it.autoPublish) {
+    // You already approved these exact products; they were only rebuilt in the Etsy-connected store.
+    store.updateItem(it, { printify: made[0], listing: made[0].listing, status: 'approved_publish', pricingV2: true, autoPublish: false, keepListings: null });
+    store.log('Gjergj', `rebuilt ${label(it)} in the Etsy-connected Printify store. Publishing now, as you approved.`);
+    return;
+  }
   store.updateItem(it, { printify: made[0], listing: made[0].listing, status: 'awaiting_publish', pricingV2: true });
   store.act('gjergj', 'approval', { icon: icon(it) });
   const lines = made.map(m => `• ${productName(m.kind)}: from ${gbp(m.price)}${m.cost ? ` (making it costs about ${gbp(m.cost)}; bigger sizes priced up to match)` : ''}`).join('\n');
@@ -248,7 +255,19 @@ async function publishStep(it) {
   for (const m of all) {
     if (m.published) continue;
     store.act('gjergj', 'work', { label: `Publishing the ${productName(m.kind)}` });
-    await printify.publish(m.shopId, m.id);
+    try { await printify.publish(m.shopId, m.id); }
+    catch (e) {
+      if (!printify.isNotConnected(e)) throw e;
+      // The product sits in a Printify store that isn't linked to Etsy. Rebuild it in the one that is,
+      // keeping the same listing text and your approval.
+      store.act('gjergj', 'idle');
+      await printify.ensureShop({ force: true });
+      const keepListings = {};
+      for (const x of all) if (x.listing) keepListings[x.kind] = x.listing;
+      store.updateItem(it, { status: 'approved_design', printifyAll: [], printify: null, keepListings, autoPublish: true, errors: 0, retryAt: null, error: null });
+      store.log('Gjergj', `${label(it)} was in a Printify store that isn't linked to Etsy. Rebuilding it in the Etsy-connected store, then publishing.`);
+      return;
+    }
     m.published = true;
     store.updateItem(it, { printifyAll: all });
     store.act('gjergj', 'idle');
@@ -313,6 +332,12 @@ function start() {
     if (it.status === 'failed' && /did not return JSON/.test(it.error || '')) {
       store.updateItem(it, { status: it.printifyAll && it.printifyAll.length ? 'approved_design' : 'queued', errors: 0, retryAt: null, error: null });
       store.log('Shqiponja', `retrying ${label(it)} now that the reply-length problem is fixed.`);
+    }
+  }
+  // Retry publishes that failed because the Printify store wasn't linked to Etsy (fixed 3 Nov).
+  for (const it of store.state.items) {
+    if (['failed', 'approved_publish'].includes(it.status) && /8254|not connected to sales channel/i.test(it.error || '')) {
+      store.updateItem(it, { status: 'approved_publish', errors: 0, retryAt: null, error: null });
     }
   }
   // Items that were mid-step when the server stopped simply carry on.
