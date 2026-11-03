@@ -347,6 +347,22 @@ async function retitleAll() {
 
 function start() {
   telegram.setDecisionHandler(decide);
+  telegram.setIdeaHandler(text => marketing.addIdea(text));
+  // Bekim's telescope idea (3 Nov), on the Star Map hoodie in midnight navy: the constellation design suits a stargazer.
+  if (!store.state.ideaTelescope) {
+    store.state.ideaTelescope = true; store.save();
+    const sm = store.state.items.find(i => i.kind === 'design' && i.direction === 'starmap' && (i.colourway || 'navy') === 'navy' && (i.printifyAll || []).some(m => m.kind === 'hoodie' && m.published));
+    marketing.addIdea('A guy wearing one of the hoodies looks into a telescope at the night sky and the stars. As he looks, Santa Claus and his reindeer fly across the moon.', sm ? {
+      sourceId: sm.id, productKind: 'hoodie',
+      idea: {
+        model: 'a man in his late twenties',
+        scene: 'Night, seen from behind and slightly to the side: the man stands on a snowy hilltop beside a brass telescope on a tripod, leaning in to look through it, the big printed artwork on the back of his hoodie clearly visible; above the dark pine-covered mountains hangs a huge, bright full moon in a sky full of stars. The moon is empty.',
+        motion: 'He looks through the telescope; a small dark silhouette of Santa Claus in his sleigh pulled by reindeer flies slowly across the face of the full moon from left to right; stars twinkle and a little snow drifts down. The camera slowly pushes in.',
+        pinExtra: 'Add a small, crisp dark silhouette of Santa Claus in his sleigh with reindeer flying across the face of the moon.',
+        duration: 8
+      }
+    } : {});
+  }
   // Rebuild products made before the provider and pricing changes (3 Nov): new provider, pounds, size-based prices.
   for (const it of store.state.items) {
     const notLive = (it.printifyAll || []).every(m => !m.published);

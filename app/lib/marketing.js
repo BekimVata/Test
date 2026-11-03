@@ -51,6 +51,7 @@ function kitFile(kind) {
 
 const label = it => {
   const src = store.getItem(it.sourceId);
+  if (!src) return 'your advert idea';
   const d = src && DIRECTIONS[src.direction];
   const c = src && colourway(src.colourway);
   return `${d ? d.name : 'product'}${c && src.colourway && src.colourway !== 'navy' ? ' (' + c.name + ')' : ''} ${productWord(it.productKind)} advert`;
@@ -100,8 +101,33 @@ const sniff = b => b[0] === 0xFF && b[1] === 0xD8 ? 'image/jpeg' : b.slice(8, 12
 const imgBlock = f => { const b = fs.readFileSync(path.join(config.DATA, 'files', f)); return { type: 'image', source: { type: 'base64', media_type: sniff(b), data: b.toString('base64') } }; };
 
 // ---------- Ilir, Lule, the eagle ----------
+// Your own ideas (Telegram: /idea ...). Ilir picks the best live product for it and turns it into a scene and a motion.
+function addIdea(text, preset = {}) {
+  const item = store.newItem({ kind: 'promo', product: 'promo', round: 1, planned: null, idea: { text: String(text).slice(0, 800), ...preset.idea }, sourceId: preset.sourceId, productKind: preset.productKind });
+  store.log('Besnik', `got your idea: "${String(text).slice(0, 120)}". Ilir and Lule are on it.`);
+  return item;
+}
+
+async function shapeIdea(it) {
+  const live = [];
+  for (const x of store.state.items) if (x.kind === 'design') for (const m of x.printifyAll || []) if (m.published) {
+    live.push({ id: x.id, kind: m.kind, name: `${DIRECTIONS[x.direction]?.name} in ${colourway(x.colourway).garment} (${productWord(m.kind)})` });
+  }
+  const r = await claude.askJSON({
+    model: 'fast', agent: 'Ilir', what: 'advert idea', mockKind: 'idea', maxTokens: 700,
+    content: `The shop owner has an idea for an advert photo and a 5 to 8 second video: "${it.idea.text}"
+Live products (id, kind, name): ${live.map(l => `${l.id}|${l.kind}|${l.name}`).join('; ')}
+Pick the product that fits the idea best (if the idea names hoodies or jumpers, pick that kind). Return JSON only:
+{"sourceId": number, "productKind": "sweatshirt" or "hoodie", "model": "who wears it, from the idea", "scene": "the FIRST FRAME of the video as one rich sentence: the setting and pose, without anything that should only appear later in the video", "motion": "what happens during the video, in order, one or two sentences", "pinExtra": "one short sentence of what to add to the still advert so it shows the idea's key moment, or empty", "duration": 5 to 8}`
+  });
+  const pick = live.find(l => l.id === Number(r.sourceId) && l.kind === r.productKind) || live.find(l => l.id === Number(r.sourceId)) || live[0];
+  if (!pick) throw new Error('No live products to advertise yet.');
+  store.updateItem(it, { sourceId: pick.id, productKind: pick.kind, idea: { ...it.idea, model: r.model, scene: r.scene, motion: r.motion, pinExtra: r.pinExtra, duration: Math.max(5, Math.min(8, Number(r.duration) || 6)) } });
+}
+
 async function makeAdvert(it) {
   const s = settings();
+  if (it.idea && (!it.sourceId || !it.idea.scene)) await shapeIdea(it);
   const src = store.getItem(it.sourceId);
   const m = (src.printifyAll || []).find(x => x.kind === it.productKind);
   const d = DIRECTIONS[src.direction];
@@ -131,7 +157,8 @@ async function makeAdvert(it) {
     const copy = await claude.askJSON({
       model: 'fast', agent: 'Ilir', what: 'advert copy', mockKind: 'promo', maxTokens: 900,
       content: `You write adverts for ${config.load().shopName}. ${BRAND}
-Campaign theme from the owner: ${s.theme}
+Campaign theme from the owner: ${s.theme}${it.idea ? `
+This advert is the owner's own idea, so the headline and captions should fit it: "${it.idea.text}"` : ''}
 Product: a ${c.garment} ${productWord(it.productKind)} with the "${d.name}" design (${d.look}); its slogan: ${d.text}. Price includes free UK delivery. This is advert round ${it.round}, so choose a fresh angle and a different scene from earlier rounds.
 Audience: people in the UK who love Christmas and also love sci-fi, space and the night sky; gift buyers for them. Inclusive: never aim at one gender.
 Rules: British spelling, no emoji in titles, no ALL CAPS, never mention AI, no claims about materials. The headline must be short and printable on the image.
@@ -144,13 +171,14 @@ Return JSON only:
  "scene": "one sentence: the setting for a lifestyle photo of ${modelFor(it)} wearing the ${productWord(it.productKind)} (keep exactly that person), in the Banians world of starry skies meeting nature (snowy pines, mountains, frozen lakes, aurora, a cosy cabin at night)",
  "motion": "one sentence: a slow, subtle camera move or natural motion for a 5-second clip of that photo (snow falling, stars twinkling, a slow push-in)"}`
     });
+    if (it.idea) { copy.scene = it.idea.scene; copy.motion = it.idea.motion; }
     store.updateItem(it, { copy });
     store.act('ilir', 'idle');
     store.log('Ilir', `wrote ${label(it)}: "${copy.headline}".`);
     store.act('ilir', 'handoff', { to: 'lule', icon: 'doc' });
   }
 
-  if (!it.model) store.updateItem(it, { model: modelFor(it) });
+  if (!it.model) store.updateItem(it, { model: (it.idea && it.idea.model) || modelFor(it) });
   const banner = kitFile('banner'), logo = kitFile('logo');
   const attempt = (it.attempts || 0) + 1;
   const fix = it.feedback ? ` Important fix from review: ${it.feedback}` : '';
@@ -166,7 +194,7 @@ Return JSON only:
   const pin = await ideogram.edit({
     images: logo ? [lifestyle.file, logo] : [lifestyle.file],
     size: '1024x1536', quality: 'medium', fileName: `promo-${it.id}-pin-${attempt}.png`, agent: 'Lule',
-    prompt: `Turn image 1 into a tall, premium Pinterest advert. Keep the person and the garment from image 1 exactly as they are, including the printed artwork. Add the headline "${it.copy.headline}" in bold, clean, futuristic white lettering near the top, and the small line "Free UK delivery" near the bottom.${logo ? ' Place the logo from image 2 small and tidy in a bottom corner.' : ''} Minimal and elegant with breathing room, midnight-blue cosmic mood. No other text.${fix}`
+    prompt: `Turn image 1 into a tall, premium Pinterest advert. Keep the person and the garment from image 1 exactly as they are, including the printed artwork. Add the headline "${it.copy.headline}" in bold, clean, futuristic white lettering near the top, and the small line "Free UK delivery" near the bottom.${logo ? ' Place the logo from image 2 small and tidy in a bottom corner.' : ''} ${it.idea && it.idea.pinExtra ? ' ' + it.idea.pinExtra : ''} Minimal and elegant with breathing room, midnight-blue cosmic mood. No other text.${fix}`
   });
   store.act('lule', 'idle');
   store.updateItem(it, { lifestyle: lifestyle.file, pin: pin.file, attempts: attempt });
@@ -195,7 +223,7 @@ Return JSON only: {"ok": true or false, "score": 1-10, "problems": ["short probl
   store.act('lule', 'approval', { icon: 'doc' });
   await telegram.askApproval({
     itemId: it.id, stage: 'promo', file: pin.file,
-    caption: `📣 Advert #${it.id}: ${label(it)}\nHeadline: ${it.copy.headline}\nPinterest: ${it.copy.pinTitle}\nTikTok/Reels: ${it.copy.caption}\nEagle: ${check.score ?? '–'}/10${check.ok ? '' : ' ⚠️ ' + (check.problems || []).join('; ')}\n\nApprove to schedule it on Pinterest${videoDue() ? ' and make the video' : ''}.`
+    caption: `📣 Advert #${it.id}: ${label(it)}\nHeadline: ${it.copy.headline}\nPinterest: ${it.copy.pinTitle}\nTikTok/Reels: ${it.copy.caption}\nEagle: ${check.score ?? '–'}/10${check.ok ? '' : ' ⚠️ ' + (check.problems || []).join('; ')}\n\nApprove to schedule it on Pinterest${it.idea || videoDue() ? ' and make the video' : ''}.`
   });
 }
 
@@ -239,11 +267,12 @@ async function scheduleAdvert(it) {
   }
   if (it.wantVideo && !it.video) {
     store.act('era', 'work', { label: 'Filming the clip' });
-    const v = await ideogram.video({ image: it.lifestyle, prompt: `${it.copy.motion} Keep the person, the garment and its printed artwork unchanged and steady. Calm, cinematic, premium.`, fileName: `promo-${it.id}-clip.mp4`, agent: 'Era' });
+    const secs = (it.idea && it.idea.duration) || 5;
+    const v = await ideogram.video({ image: it.lifestyle, duration: secs, costUSD: 0.084 * secs, prompt: `${it.copy.motion} Keep the person, the garment and its printed artwork unchanged and steady. Calm, cinematic, premium.`, fileName: `promo-${it.id}-clip.mp4`, agent: 'Era' });
     store.act('era', 'idle');
     store.state.videos = (store.state.videos || []).concat(Date.now());
     store.updateItem(it, { video: v.file });
-    store.log('Era', `filmed a 5-second clip for ${label(it)}. It's on your Telegram, ready to post.`);
+    store.log('Era', `filmed a ${(it.idea && it.idea.duration) || 5}-second clip for ${label(it)}. It's on your Telegram, ready to post.`);
     await telegram.sendVideo(v.file, `🎬 Ready for TikTok and Instagram Reels:\n\n${it.copy.caption}\n\nLink in bio: ${it.etsyUrl}\n\nTip: add a trending sound in the app before posting.`);
   }
   store.updateItem(it, { status: 'scheduled' });
@@ -252,7 +281,7 @@ async function scheduleAdvert(it) {
 
 function decidePromo(it, ok) {
   if (it.status !== 'awaiting_promo') return false;
-  store.updateItem(it, { status: ok ? 'approved_promo' : 'rejected', wantVideo: ok && videoDue() });
+  store.updateItem(it, { status: ok ? 'approved_promo' : 'rejected', wantVideo: ok && (!!it.idea || videoDue()) }); // your own ideas always get their video
   return true;
 }
 
@@ -274,4 +303,4 @@ function markUploaded() {
   return n;
 }
 
-module.exports = { settings, planToday, makeAdvert, scheduleAdvert, decidePromo, pinterestCsv, markUploaded, label };
+module.exports = { addIdea, settings, planToday, makeAdvert, scheduleAdvert, decidePromo, pinterestCsv, markUploaded, label };

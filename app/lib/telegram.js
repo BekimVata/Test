@@ -8,6 +8,7 @@ const store = require('./store');
 const mock = require('./mock');
 
 let onDecision = null;     // (itemId, stage, ok) => void
+let onIdea = null;         // (text) => void
 let polling = false;
 
 function api(method, params) {
@@ -91,6 +92,10 @@ async function handleUpdate(u) {
       } else {
         await api('sendMessage', { chat_id: chatId, text: 'Send the 6-digit pairing code from the office Settings page.' });
       }
+    } else if (chatId === cfg.telegramChatId && /^\/idea\b/i.test(text)) {
+      const idea = text.replace(/^\/idea\s*/i, '').trim();
+      if (idea.length < 10 || !onIdea) await api('sendMessage', { chat_id: chatId, text: 'Send your advert idea like this:\n/idea a man in a hoodie looking through a telescope while Santa flies across the moon' });
+      else { onIdea(idea); await api('sendMessage', { chat_id: chatId, text: '💡 Got it. The marketing team is turning that into an advert and a video. You\'ll get it here to approve.' }); }
     } else if (chatId === cfg.telegramChatId && /^\/status/.test(text)) {
       const s = store.summary();
       await api('sendMessage', { chat_id: chatId, text: `Today: £${s.todaySpend.toFixed(2)} AI spend\nWaiting for you: ${s.waiting}\nLive products: ${s.published}` });
@@ -134,4 +139,4 @@ async function test() {
   return `Connected as @${me.result.username}${cfg.telegramChatId ? ' · paired' : ' · send the pairing code to the bot'}`;
 }
 
-module.exports = { poll, askApproval, sendText, sendDocument, sendVideo, test, setDecisionHandler: f => { onDecision = f; } };
+module.exports = { poll, askApproval, sendText, sendDocument, sendVideo, test, setDecisionHandler: f => { onDecision = f; }, setIdeaHandler: f => { onIdea = f; } };
