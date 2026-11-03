@@ -11,9 +11,8 @@ const claude = require('./anthropic');
 const ideogram = require('./ideogram');
 const printify = require('./printify');
 const telegram = require('./telegram');
-const { BRAND, COLLECTION, DIRECTIONS, EMBLEM_PROMPT, designPrompt } = require('./briefs');
+const { BRAND, COLLECTION, DIRECTIONS, COLOURWAYS, colourway, EMBLEM_PROMPT, designPrompt } = require('./briefs');
 const preview = require('./preview');
-const GARMENT_HEX = '#14213D';
 
 const ACTIONABLE = ['queued', 'approved_design', 'approved_publish'];
 const EST = { queued: 0.12, approved_design: 0.02, approved_publish: 0 }; // £ per step, for the cap
@@ -23,16 +22,17 @@ let capNotedDay = '';
 const gbp = n => '£' + (n / 100).toFixed(2);
 const productName = p => p === 'sweatshirt' ? 'Christmas jumper' : p === 'hoodie' ? 'Christmas hoodie' : p;
 const productsOf = it => it.products || [it.product];
-const label = it => it.kind === 'kit' ? 'shop kit' : `${DIRECTIONS[it.direction]?.name || it.direction} ${productsOf(it).map(productName).join(' + ')}`;
+const cwName = it => it.colourway && it.colourway !== 'navy' ? ` (${colourway(it.colourway).name})` : '';
+const label = it => it.kind === 'kit' ? 'shop kit' : `${DIRECTIONS[it.direction]?.name || it.direction}${cwName(it)} ${productsOf(it).map(productName).join(' + ')}`;
 const icon = it => it.product === 'mug' ? 'mug' : it.kind === 'kit' ? 'doc' : 'shirt';
 
-function enqueueBatch(directions = Object.keys(DIRECTIONS), products = ['sweatshirt', 'hoodie']) {
+function enqueueBatch(directions = Object.keys(DIRECTIONS), products = ['sweatshirt', 'hoodie'], colourways = ['navy']) {
   const made = [];
-  for (const d of directions) {
-    const exists = store.state.items.find(i => i.kind === 'design' && i.direction === d && !['rejected', 'failed'].includes(i.status));
+  for (const c of colourways) for (const d of directions) {
+    const exists = store.state.items.find(i => i.kind === 'design' && i.direction === d && (i.colourway || 'navy') === c && !['rejected', 'failed'].includes(i.status));
     if (exists) continue;
     // One design, several products: the artwork is made once and reused on each product.
-    made.push(store.newItem({ kind: 'design', direction: d, product: products[0], products }));
+    made.push(store.newItem({ kind: 'design', direction: d, colourway: c, product: products[0], products }));
   }
   if (made.length) store.log('Shqiponja', `new batch: ${made.length} designs. Drita, Arben, to work!`);
   else store.log('Shqiponja', 'every design in that batch already exists or is in progress.');
@@ -116,7 +116,7 @@ async function designStep(it) {
     store.act('drita', 'work', { label: 'Researching buyers' });
     const r = await claude.askJSON({
       model: 'fast', agent: 'Drita', what: 'trend research', mockKind: 'research', maxTokens: 500,
-      content: `You research Etsy buyers for a UK print-on-demand shop. ${BRAND} Current collection: ${COLLECTION.name}. The design is "${d.name}": ${d.look}, slogan "${d.text}", on a ${it.product}. Return JSON only: {"audience": "who buys this, one sentence, inclusive, not limited to one gender", "angle": "the gift angle that sells it, one sentence", "keywords": ["8 Etsy search phrases buyers really type, each under 20 characters"]}`
+      content: `You research Etsy buyers for a UK print-on-demand shop. ${BRAND} Current collection: ${COLLECTION.name}. The design is "${d.name}": ${d.look}, slogan "${d.text}", printed on a ${colourway(it.colourway).garment} ${it.product}. Return JSON only: {"audience": "who buys this, one sentence, inclusive, not limited to one gender", "angle": "the gift angle that sells it, one sentence", "keywords": ["8 Etsy search phrases buyers really type, each under 20 characters"]}`
     });
     store.updateItem(it, { research: r });
     store.act('drita', 'idle');
@@ -125,10 +125,10 @@ async function designStep(it) {
   }
 
   store.act('arben', 'work', { label: 'Designing in Ideogram' });
-  const img = await ideogram.generate({ prompt: designPrompt(it.direction, it.product, it.feedback), fileName: `design-${it.id}-${(it.attempts || 0) + 1}.png`, agent: 'Arben' });
+  const img = await ideogram.generate({ prompt: designPrompt(it.direction, it.product, it.feedback, it.colourway), fileName: `design-${it.id}-${(it.attempts || 0) + 1}.png`, agent: 'Arben' });
   store.act('arben', 'idle');
   const files = (it.files || []).concat(img.file);
-  const prev = preview.onGarment(img.file, GARMENT_HEX);
+  const prev = preview.onGarment(img.file, colourway(it.colourway).hex);
   store.updateItem(it, { files, design: img.file, preview: prev, designUrl: img.url, seed: img.seed, attempts: (it.attempts || 0) + 1 });
   store.log('Arben', `finished design ${it.attempts} for ${label(it)}.`);
 
@@ -145,12 +145,13 @@ async function designStep(it) {
   store.act('arben', 'approval', { icon: icon(it) });
   await telegram.askApproval({
     itemId: it.id, stage: 'design', file: it.preview || img.file,
-    caption: `🎨 Design #${it.id}: ${d.name} · ${productName(it.product)}\nSlogan: ${d.text}\nEagle's score: ${check.score ?? '–'}/10${check.ok ? '' : ' ⚠️ ' + (check.problems || []).join('; ')}\n\nApprove to turn it into a product.`
+    caption: `🎨 Design #${it.id}: ${d.name}${cwName(it)} · on ${colourway(it.colourway).garment}\nSlogan: ${d.text}\nEagle's score: ${check.score ?? '–'}/10${check.ok ? '' : ' ⚠️ ' + (check.problems || []).join('; ')}\n\nApprove to turn it into a product.`
   });
 }
 
 async function inspect(it, img) {
   const d = DIRECTIONS[it.direction];
+  const c = colourway(it.colourway);
   // Send the file itself (Ideogram's image links can't be opened by Claude).
   // The eagle looks at the navy preview, exactly as the design will look on the garment.
   const buf = fs.readFileSync(path.join(config.DATA, 'files', it.preview || img.file || it.design));
@@ -164,7 +165,7 @@ async function inspect(it, img) {
     system: 'You are the strict but fair art director of a print-on-demand shop. You only pass designs that are ready to print and sell.',
     content: [
       { type: 'image', source },
-      { type: 'text', text: `Inspect this design for a ${productsOf(it).map(productName).join(' and ')}. IMPORTANT: the artwork is shown here on a navy background, as it will look printed on a ${COLLECTION.garment || 'dark navy'} garment. White, silver and pale elements are intentional: judge contrast as if the background were ${COLLECTION.garment || 'dark navy'}, never white. Brief: "${d.name}", palette ${d.palette}, look: ${d.look}. Text rule: ${d.textRule || 'The only text must read exactly: "' + d.text + '".'}
+      { type: 'text', text: `Inspect this design for a ${productsOf(it).map(productName).join(' and ')}. IMPORTANT: the artwork is shown here on a ${c.garment} background, exactly as it will look printed on a ${c.garment} garment. ${c.light ? 'The garment is light, so the ink must be dark: flag anything pale or white that would vanish.' : 'Pale and white elements are intentional: judge contrast against the ' + c.garment + ' background, never against white.'} Brief: "${d.name}", colourway "${c.name}", palette ${c.palette}, look: ${d.look}. Text rule: ${d.textRule || 'The only text must read exactly: "' + d.text + '".'}
 Check: 1) the text rule above is met and every word is spelled right; 2) colours match the palette; 3) artwork is isolated, no shirt, mockup, frame or background scene; 4) no brand logos, trademarks or known characters; 5) printable: no hairlines too thin to print, nothing tiny or cut off; 6) does it look stylish and sellable.
 Return JSON only: {"ok": true or false, "score": 1-10, "problems": ["short problems, empty if none"], "fix": "one sentence telling the designer exactly what to change"}. ok must be false if the text rule fails or score is below 7.` }
     ]
@@ -182,10 +183,11 @@ async function writeListing(it, kind) {
   const d = DIRECTIONS[it.direction];
   const cfg = config.load();
   const pc = PRODUCT_COPY[kind] || { what: kind, start: '', honest: 'printed' };
+  const c = colourway(it.colourway);
   const L = await claude.askJSON({
     model: 'fast', agent: 'Teuta', what: 'listing copy', mockKind: 'listing', maxTokens: 900,
-    content: `Write an Etsy listing for ${cfg.shopName}. ${BRAND} This item is from the ${COLLECTION.name} collection. Product: ${pc.what}, with the "${d.name}" Christmas tree design (${d.look}), slogan "${d.text}". Buyer: ${it.research?.audience || 'gift buyers'}. Angle: ${it.research?.angle || ''}. Keywords: ${(it.research?.keywords || []).join(', ')}.
-Rules: British spelling. Title under 140 characters, starting with "${pc.start}", then the strongest search phrases. Say honestly in the description that it is ${pc.honest}. No ALL CAPS, no emoji, no brand names, and never say it is for men, women or any one group. Description: 3 short paragraphs, warm and stylish, no claims about materials, sizing or care (product details are added separately). Exactly 13 tags, each under 20 characters, lowercase, no punctuation except spaces.
+    content: `Write an Etsy listing for ${cfg.shopName}. ${BRAND} This item is from the ${COLLECTION.name} collection. Product: ${pc.what}, in ${c.garment} with the "${d.name}" Christmas tree design (${d.look}) printed in ${c.palette.replace(/\s*\(#[0-9A-Fa-f]{6}\)/g, '')}, slogan "${d.text}". Buyer: ${it.research?.audience || 'gift buyers'}. Angle: ${it.research?.angle || ''}. Keywords: ${(it.research?.keywords || []).join(', ')}.
+Rules: British spelling. Title under 140 characters, starting with "${pc.start}", with the colour word "${c.titleColour}" within the first 40 characters, then the strongest search phrases. Include the colour in at least two tags. Say honestly in the description that it is ${pc.honest}. No ALL CAPS, no emoji, no brand names, and never say it is for men, women or any one group. Description: 3 short paragraphs, warm and stylish, no claims about materials, sizing or care (product details are added separately). Exactly 13 tags, each under 20 characters, lowercase, no punctuation except spaces.
 Return JSON only: {"title": "...", "description": "...", "tags": ["..."]}`
   });
   const tags = [...new Set((L.tags || []).map(t => String(t).toLowerCase().replace(/[^a-z0-9 '-]/g, '').trim().slice(0, 20)).filter(Boolean))].slice(0, 13);
@@ -193,13 +195,17 @@ Return JSON only: {"title": "...", "description": "...", "tags": ["..."]}`
   return { title: String(L.title || '').slice(0, 140), description: String(L.description || '') + disclosure, tags };
 }
 
-async function ensureEmblem() {
-  if (store.state.emblem) return store.state.emblem;
-  store.act('arben', 'work', { label: 'Designing the chest emblem' });
-  const img = await ideogram.generate({ prompt: EMBLEM_PROMPT, fileName: 'emblem.png', agent: 'Arben' });
+async function ensureEmblem(key = 'navy') {
+  if (key === 'navy' && store.state.emblem) return store.state.emblem;
+  store.state.emblems = store.state.emblems || {};
+  if (key !== 'navy' && store.state.emblems[key]) return store.state.emblems[key];
+  const c = colourway(key);
+  store.act('arben', 'work', { label: `Designing the ${c.name} chest emblem` });
+  const img = await ideogram.generate({ prompt: EMBLEM_PROMPT(key), fileName: key === 'navy' ? 'emblem.png' : `emblem-${key}.png`, agent: 'Arben' });
   store.act('arben', 'idle');
-  store.state.emblem = img.file; store.save();
-  store.log('Arben', 'designed the small chest emblem that goes on the front of every hoodie.');
+  if (key === 'navy') store.state.emblem = img.file; else store.state.emblems[key] = img.file;
+  store.save();
+  store.log('Arben', `designed the ${c.name} chest emblem for the front of the ${c.garment} hoodies.`);
   return img.file;
 }
 
@@ -218,13 +224,13 @@ async function productStep(it) {
     store.act('teuta', 'handoff', { to: 'gjergj', icon: 'doc' });
 
     let emblemFile = null;
-    if (kind === 'hoodie') emblemFile = await ensureEmblem();
+    if (kind === 'hoodie') emblemFile = await ensureEmblem(it.colourway || 'navy');
     store.act('gjergj', 'work', { label: `Building the ${productName(kind)}` });
     const cat = await printify.catalogFor(kind);
     const details = cat.blueprintDescription ? `\n\nProduct details:\n${cat.blueprintDescription}` : '';
     const prod = await printify.createProduct({
       kind, title: listing.title, description: listing.description + details, tags: listing.tags,
-      imageFile: it.design, emblemFile, colors: kind === 'mug' ? null : d.shirtColors,
+      imageFile: it.design, emblemFile, colors: kind === 'mug' ? null : colourway(it.colourway).colors,
       background: kind === 'mug' ? d.mugBackground : null
     });
     store.act('gjergj', 'idle');
@@ -245,7 +251,7 @@ async function productStep(it) {
   const lines = made.map(m => `• ${productName(m.kind)}: from ${gbp(m.price)}${m.cost ? ` (making it costs about ${gbp(m.cost)}; bigger sizes priced up to match)` : ''}`).join('\n');
   await telegram.askApproval({
     itemId: it.id, stage: 'publish', url: made[0].mockups[0], file: made[0].mockups[0] ? null : it.design,
-    caption: `🛍️ Ready for Etsy: ${d.name}\n${lines}\n\nPublish ${made.length > 1 ? 'all ' + made.length : 'it'} to ${cfg.shopName}? Printify's product photos are allowed on Etsy; your own photos from a sample can be added later.`
+    caption: `🛍️ Ready for Etsy: ${d.name}${cwName(it)}\n${lines}\n\nPublish ${made.length > 1 ? 'all ' + made.length : 'it'} to ${cfg.shopName}? Printify's product photos are allowed on Etsy; your own photos from a sample can be added later.`
   });
 }
 
@@ -344,4 +350,4 @@ function start() {
   setInterval(() => tick().catch(e => console.error('tick', e)), 3000);
 }
 
-module.exports = { start, enqueueBatch, enqueueKit, decide, tick };
+module.exports = { start, enqueueBatch, enqueueKit, decide, tick, COLOURWAYS };

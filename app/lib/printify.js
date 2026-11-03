@@ -108,7 +108,8 @@ function chooseVariants(kind, cat, wantedColors) {
     for (const c of wantedColors) {
       const hit = vs.filter(v => v.color.toLowerCase().includes(c.toLowerCase()));
       if (hit.length) return hit;
-    }
+    }    // Never fall back to a random colour: that would list the wrong garment.
+    throw new Error(`${cat.providerTitle} has none of these colours for the ${kind}: ${wantedColors.join(', ')}. Available: ${[...new Set(vs.map(v => v.color))].join(', ')}`);
   }
   if (kind === 'mug') {
     const white = vs.filter(v => /white/i.test(v.color) || !v.color);
@@ -192,4 +193,6 @@ async function test() {
   return `Connected · ${etsy ? 'Etsy shop "' + etsy.title + '"' : all.length + ' shop(s), none on Etsy yet'}`;
 }
 
-module.exports = { createProduct, publish, test, ensureShop, catalogFor, isNotConnected: e => /8254|not connected to sales channel/i.test(String(e && e.message || e)) };
+async function colours(kind) { const cat = await catalogFor(kind); return { provider: cat.providerTitle, colours: [...new Set(cat.variants.map(v => v.color))] }; }
+
+module.exports = { colours, createProduct, publish, test, ensureShop, catalogFor, isNotConnected: e => /8254|not connected to sales channel/i.test(String(e && e.message || e)) };

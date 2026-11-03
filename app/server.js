@@ -84,7 +84,7 @@ function readBody(req) {
 
 function publicItem(i) {
   return {
-    id: i.id, kind: i.kind, direction: i.direction, directionName: DIRECTIONS[i.direction]?.name, product: i.product,
+    id: i.id, kind: i.kind, direction: i.direction, directionName: DIRECTIONS[i.direction]?.name, colourway: i.colourway || 'navy', colourwayName: (pipeline.COLOURWAYS[i.colourway || 'navy'] || {}).name, product: i.product,
     status: i.status, attempts: i.attempts, design: i.design, preview: i.preview, files: i.files, check: i.check, listing: i.listing,
     mockups: i.printify?.mockups, price: i.printify?.price, cost: i.printify?.cost, products: i.products || [i.product], made: (i.printifyAll || []).map(m => ({ kind: m.kind, price: m.price, cost: m.cost, title: m.listing?.title })), error: i.error, created: i.created, updated: i.updated, kit: i.kit
   };
@@ -173,6 +173,12 @@ const server = http.createServer(async (req, res) => {
       return file(res, path.join(config.DATA, 'files', name));
     }
     if (p === '/api/state') return send(res, 200, snapshot());
+    if (p === '/api/colours') {
+      // Garment colours each print provider stocks, so colourways can be matched to real names.
+      const pf = require('./lib/printify'); const out = {};
+      for (const k of ['sweatshirt', 'hoodie']) { try { out[k] = await pf.colours(k); } catch (e) { out[k] = { error: e.message }; } }
+      return send(res, 200, out);
+    }
     if (p === '/api/share') return send(res, 200, { base: `/share/${config.load().shareToken}/` });
     if (p === '/api/events') {
       res.writeHead(200, { 'Content-Type': 'text/event-stream', 'Cache-Control': 'no-store', Connection: 'keep-alive', 'X-Accel-Buffering': 'no' });
@@ -208,7 +214,8 @@ const server = http.createServer(async (req, res) => {
     if (p === '/api/batch') {
       const dirs = Array.isArray(body.directions) && body.directions.length ? body.directions.filter(d => DIRECTIONS[d]) : undefined;
       const prods = Array.isArray(body.products) && body.products.length ? body.products.filter(x => ['sweatshirt', 'hoodie', 'mug'].includes(x)) : undefined;
-      return send(res, 200, { ok: true, added: pipeline.enqueueBatch(dirs, prods) });
+      const cws = Array.isArray(body.colourways) && body.colourways.length ? body.colourways.filter(c => pipeline.COLOURWAYS[c]) : undefined;
+      return send(res, 200, { ok: true, added: pipeline.enqueueBatch(dirs, prods, cws) });
     }
     if (p === '/api/kit') { pipeline.enqueueKit(); return send(res, 200, { ok: true }); }
     if (p === '/api/decide') return send(res, 200, { ok: await pipeline.decide(body.id, body.stage, !!body.ok, 'office') });

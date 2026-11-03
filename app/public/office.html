@@ -771,7 +771,7 @@ function addLog(line, prepend = true) {
 }
 
 // ----- panels -----
-function itemTitle(i) { const n = p => p === "sweatshirt" ? "jumper" : p; return i.kind === "kit" ? "Shop kit" : `${i.directionName || i.direction} · ${(i.products || [i.product]).map(n).join(" + ")}`; }
+function itemTitle(i) { const n = p => p === "sweatshirt" ? "jumper" : p; return i.kind === "kit" ? "Shop kit" : `${i.directionName || i.direction}${i.colourway && i.colourway !== "navy" ? " (" + i.colourwayName + ")" : ""} · ${(i.products || [i.product]).map(n).join(" + ")}`; }
 function renderApprovals() {
   const waiting = LIVE.items.filter(i => i.status === "awaiting_design" || i.status === "awaiting_publish");
   st.approvals = waiting; st.pile = waiting.length;
