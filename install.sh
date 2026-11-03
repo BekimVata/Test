@@ -3,6 +3,7 @@
 # Safe to run again: it updates the code and keeps your settings and data.
 # Usage: curl -fsSL https://raw.githubusercontent.com/BekimVata/Test/banians-office/install.sh | OFFICE_PASSWORD='your password' bash
 set -euo pipefail
+trap 'echo "INSTALL FAILED at line $LINENO (see above). Send this screen to Claude."' ERR
 
 REPO="https://github.com/BekimVata/Test.git"
 BRANCH="banians-office"
@@ -41,7 +42,10 @@ chmod 700 "$DIR/data"
 
 if [ -n "${OFFICE_PASSWORD:-}" ]; then
   echo "==> Setting the office password"
-  sudo -u banians DATA_DIR="$DIR/data" node "$DIR/app/server.js" --set-password "$OFFICE_PASSWORD"
+  if ! sudo -u banians DATA_DIR="$DIR/data" node "$DIR/app/server.js" --set-password "$OFFICE_PASSWORD"; then
+    echo "!! Password not set (it must be at least 8 characters). Set it later with:"
+    echo "   sudo -u banians DATA_DIR=$DIR/data node $DIR/app/server.js --set-password 'yourpassword'"
+  fi
 fi
 
 echo "==> Starting the office service"
@@ -87,4 +91,5 @@ echo ""
 echo "======================================================"
 echo " Banians office is running."
 echo " Open: https://$HOST"
+echo " (Log: /var/log/banians-install.log)"
 echo "======================================================"
