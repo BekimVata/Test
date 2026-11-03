@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Banians Office</title>
+<title>Banians Head Office</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Pixelify+Sans:wght@400;600;700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
@@ -162,8 +162,8 @@ a.btn{text-decoration:none;display:inline-flex;align-items:center}
 <div class="wrap">
   <header>
     <div>
-      <h1>Zyra e <span>Shqiponjës</span></h1>
-      <p class="sub" id="shopSub">The Eagle's Office for Banians</p>
+      <h1>Banians <span>Head Office</span></h1>
+      <p class="sub" id="shopSub">Your AI team · Cosmic Christmas collection</p>
     </div>
     <div class="controls">
       <button class="btn ok" id="btnBatch">Start first batch</button>
@@ -850,7 +850,7 @@ function renderStatus() {
   else if (!c.telegramPaired) txt.innerHTML = `Keys saved. Pair Telegram on the <a href="/setup">Settings page</a> to get iPhone approvals.`;
   else txt.textContent = c.paused ? "Paused. Nobody starts new work until you resume." : `Connected to Printify, Ideogram, Claude and Telegram. Daily AI cap ${money(c.dailyCapGBP)}.`;
   document.getElementById("btnPause").textContent = c.paused ? "Resume office" : "Pause office";
-  document.getElementById("shopSub").textContent = `The Eagle's Office for ${c.shopName || "Banians"} · Cosmic Christmas collection`;
+  document.getElementById("shopSub").textContent = "Your AI team · Cosmic Christmas collection";
 }
 function renderAll() { renderApprovals(); renderPipe(); renderKit(); renderPanels(); renderStatus(); }
 
