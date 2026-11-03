@@ -19,10 +19,11 @@ let busy = false;
 let capNotedDay = '';
 
 const gbp = n => '£' + (n / 100).toFixed(2);
-const label = it => it.kind === 'kit' ? 'shop kit' : `${DIRECTIONS[it.direction]?.name || it.direction} ${it.product}`;
+const productName = p => p === 'sweatshirt' ? 'Christmas jumper' : p;
+const label = it => it.kind === 'kit' ? 'shop kit' : `${DIRECTIONS[it.direction]?.name || it.direction} ${productName(it.product)}`;
 const icon = it => it.product === 'mug' ? 'mug' : it.kind === 'kit' ? 'doc' : 'shirt';
 
-function enqueueBatch(directions = Object.keys(DIRECTIONS), products = ['sweatshirt', 'mug']) {
+function enqueueBatch(directions = Object.keys(DIRECTIONS), products = ['sweatshirt']) {
   const made = [];
   for (const d of directions) for (const p of products) {
     const exists = store.state.items.find(i => i.direction === d && i.product === p && !['rejected', 'failed'].includes(i.status));
@@ -139,7 +140,7 @@ async function designStep(it) {
   store.act('arben', 'approval', { icon: icon(it) });
   await telegram.askApproval({
     itemId: it.id, stage: 'design', file: img.file,
-    caption: `🎨 Design #${it.id}: ${d.name} · ${it.product}\nSlogan: ${d.text}\nEagle's score: ${check.score ?? '–'}/10${check.ok ? '' : ' ⚠️ ' + (check.problems || []).join('; ')}\n\nApprove to turn it into a product.`
+    caption: `🎨 Design #${it.id}: ${d.name} · ${productName(it.product)}\nSlogan: ${d.text}\nEagle's score: ${check.score ?? '–'}/10${check.ok ? '' : ' ⚠️ ' + (check.problems || []).join('; ')}\n\nApprove to turn it into a product.`
   });
 }
 
@@ -172,8 +173,8 @@ async function productStep(it) {
   store.act('teuta', 'work', { label: 'Writing the listing' });
   const L = await claude.askJSON({
     model: 'fast', agent: 'Teuta', what: 'listing copy', mockKind: 'listing', maxTokens: 900,
-    content: `Write an Etsy listing for ${cfg.shopName}, a UK shop. Product: ${it.product} with the "${d.name}" Christmas tree design (${d.look}), slogan "${d.text}". Buyer: ${it.research?.audience || 'gift buyers'}. Angle: ${it.research?.angle || ''}. Keywords: ${(it.research?.keywords || []).join(', ')}.
-Rules: British spelling. Title under 140 characters, front-load the main search phrase, no ALL CAPS, no emoji, no brand names. Description: 3 short paragraphs, warm and stylish, no claims about materials, sizing or care (product details are added separately). Exactly 13 tags, each under 20 characters, lowercase, no punctuation except spaces.
+    content: `Write an Etsy listing for ${cfg.shopName}, a UK shop. Product: ${it.product === 'sweatshirt' ? 'Christmas jumper (a printed unisex crewneck sweatshirt, not knitted; delivery included in the price)' : it.product} with the "${d.name}" Christmas tree design (${d.look}), slogan "${d.text}". Buyer: ${it.research?.audience || 'gift buyers'}. Angle: ${it.research?.angle || ''}. Keywords: ${(it.research?.keywords || []).join(', ')}.
+Rules: British spelling. Title under 140 characters, front-load the main search phrase (for jumpers start with "Christmas Jumper"), say honestly in the description that it is a printed crewneck sweatshirt and not knitted, no ALL CAPS, no emoji, no brand names. Description: 3 short paragraphs, warm and stylish, no claims about materials, sizing or care (product details are added separately). Exactly 13 tags, each under 20 characters, lowercase, no punctuation except spaces.
 Return JSON only: {"title": "...", "description": "...", "tags": ["..."]}`
   });
   const tags = [...new Set((L.tags || []).map(t => String(t).toLowerCase().replace(/[^a-z0-9 '-]/g, '').trim().slice(0, 20)).filter(Boolean))].slice(0, 13);

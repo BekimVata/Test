@@ -771,7 +771,7 @@ function addLog(line, prepend = true) {
 }
 
 // ----- panels -----
-function itemTitle(i) { return i.kind === "kit" ? "Shop kit" : `${i.directionName || i.direction} · ${i.product}`; }
+function itemTitle(i) { return i.kind === "kit" ? "Shop kit" : `${i.directionName || i.direction} · ${i.product === "sweatshirt" ? "Christmas jumper" : i.product}`; }
 function renderApprovals() {
   const waiting = LIVE.items.filter(i => i.status === "awaiting_design" || i.status === "awaiting_publish");
   st.approvals = waiting; st.pile = waiting.length;
@@ -800,7 +800,7 @@ async function decide(it, ok, el) {
 function renderPipe() {
   const el = document.getElementById("pipe"); el.innerHTML = "";
   const items = LIVE.items.slice().reverse();
-  if (!items.length) { el.innerHTML = `<li class="empty">No designs yet. Press <b>Start first batch</b> to make 8 designs: 4 tree styles on a sweatshirt and a mug.</li>`; return; }
+  if (!items.length) { el.innerHTML = `<li class="empty">No designs yet. Press <b>Start first batch</b> to make 4 Christmas jumper designs, one per tree style.</li>`; return; }
   for (const i of items) {
     const [cls, lab] = STATUS[i.status] || ["asleep", i.status];
     const li = document.createElement("li");
