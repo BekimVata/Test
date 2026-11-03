@@ -142,10 +142,17 @@ async function makeAdvert(it) {
       const info = await printify.productInfo(m.shopId, m.id);
       etsyUrl = info.etsyUrl;
       const imgs = info.images.length ? info.images : (m.mockups || []).map(src => ({ src }));
-      const want = it.productKind === 'hoodie' ? /back/i : /front/i;
-      const best = imgs.find(i => i.isDefault) || imgs.find(i => want.test(i.position || '')) || imgs[0];
-      if (!best) throw new Error('No product photo in Printify yet.');
-      mockup = await fetchTo(best.src, `promo-${it.id}-product.jpg`);
+      // Hoodies carry the big artwork on the back (the front only has the small chest emblem), so the back photo leads.
+      const pos = re => imgs.find(i => re.test(i.position || '') && !/person|model|lifestyle/i.test(i.position || '')) || imgs.find(i => re.test(i.position || ''));
+      const best = it.productKind === 'hoodie' ? (pos(/back/i) || imgs.find(i => /back/i.test(i.src))) : (pos(/front/i) || imgs.find(i => i.isDefault));
+      const pick = best || imgs[0];
+      if (!pick) throw new Error('No product photo in Printify yet.');
+      if (it.productKind === 'hoodie' && !best) throw new Error('Printify has no back photo of this hoodie yet. Trying again later.');
+      mockup = await fetchTo(pick.src, `promo-${it.id}-product.jpg`);
+      if (it.productKind === 'hoodie') {
+        const fr = pos(/front/i);
+        if (fr && fr.src !== pick.src) store.updateItem(it, { mockupFront: await fetchTo(fr.src, `promo-${it.id}-product-front.jpg`) });
+      }
     }
     if (!etsyUrl) throw new Error('The Etsy link for this product isn\'t ready yet (Printify is still syncing). Trying again later.');
     store.updateItem(it, { mockup, etsyUrl });
@@ -182,13 +189,16 @@ Return JSON only:
   const banner = kitFile('banner'), logo = kitFile('logo');
   const attempt = (it.attempts || 0) + 1;
   const fix = it.feedback ? ` Important fix from review: ${it.feedback}` : '';
-  const sideNote = it.productKind === 'hoodie' ? 'The big artwork is printed on the back of the hoodie, so show the person from behind or three-quarter back so the artwork is clearly visible.' : 'Show the printed artwork on the chest clearly, facing the camera.';
+  const front = it.productKind === 'hoodie' && it.mockupFront ? it.mockupFront : null;
+  const sideNote = it.productKind === 'hoodie'
+    ? `Image 1 is the BACK of the hoodie: the big artwork is printed there, so show the person from behind or three-quarter back with that back artwork clearly visible and unchanged.${front ? ' Image 2 is the front of the same hoodie (only a small chest emblem); if any of the front shows, it must match image 2.' : ''}`
+    : 'Show the printed artwork on the chest clearly, facing the camera.';
 
   store.act('lule', 'work', { label: 'Lifestyle photo' });
   const lifestyle = await ideogram.edit({
-    images: banner ? [it.mockup, banner] : [it.mockup],
+    images: [it.mockup, front, banner].filter(Boolean),
     size: '1152x2048', quality: 'medium', fileName: `promo-${it.id}-life-${attempt}.png`, agent: 'Lule',
-    prompt: `Image 1 is the exact product: a ${c.garment} ${productWord(it.productKind)} with a printed design. Create a premium, realistic fashion photograph of ${it.model || modelFor(it)} wearing exactly this garment. Keep the garment colour and the printed artwork exactly as in image 1: same shapes, same colours, same lettering, not redrawn, not mirrored, not distorted. ${sideNote} Setting: ${it.copy.scene}${banner ? ' Use image 2 only for mood and colour (midnight-blue cosmic sky meeting dark pine nature); do not copy any text from it.' : ''} Cinematic night light, natural skin and hands, shallow depth of field. No text, no logos, no watermark.${fix}`
+    prompt: `Image 1 is the exact product: a ${c.garment} ${productWord(it.productKind)} with a printed design. Create a premium, realistic fashion photograph of ${it.model || modelFor(it)} wearing exactly this garment. Keep the garment colour and the printed artwork exactly as in image 1: same shapes, same colours, same lettering, not redrawn, not mirrored, not distorted. ${sideNote} Setting: ${it.copy.scene}${banner ? ` Use image ${front ? 3 : 2} only for mood and colour (midnight-blue cosmic sky meeting dark pine nature); do not copy any text from it.` : ''} Cinematic night light, natural skin and hands, shallow depth of field. No text, no logos, no watermark.${fix}`
   });
   store.act('lule', 'work', { label: 'Pinterest advert' });
   const pin = await ideogram.edit({
@@ -201,14 +211,14 @@ Return JSON only:
   store.log('Lule', `made the lifestyle photo and the Pinterest advert for ${label(it)} (try ${attempt}).`);
 
   // The eagle compares the advert with the real product.
-  const a = forCheck(it.mockup), b = forCheck(lifestyle.file), p2 = forCheck(pin.file);
+  const a = forCheck(it.mockup), b = forCheck(lifestyle.file), p2 = forCheck(pin.file), fr = front ? forCheck(front) : null;
   let check = { ok: true, score: null, problems: ['not checked by the eagle (images too large)'] };
   if (a && b && p2) {
     check = await claude.askJSON({
       model: 'smart', agent: 'Shqiponja', what: 'advert inspection', mockKind: 'check', maxTokens: 700,
       system: 'You are the strict but fair brand director of a clothing shop. Adverts must show the real product honestly and look premium.',
-      content: [imgBlock(a), imgBlock(b), imgBlock(p2), { type: 'text', text: `Image 1 is the real product photo. Image 2 is a lifestyle photo made for an advert, image 3 is the Pinterest advert made from it.
-Check: 1) in images 2 and 3 the garment colour and the printed artwork match image 1 closely (same design, not redrawn into something different, readable where the original has text); a buyer must not feel misled; 2) image 3 headline reads exactly "${it.copy.headline}" and "Free UK delivery", spelled right, and there is no other stray text; 3) no warped faces, hands or extra limbs; 4) no third-party logos or brands; 5) premium, on-brand look (cosmic night sky meets nature, midnight blue).
+      content: [imgBlock(a), imgBlock(b), imgBlock(p2), ...(fr ? [imgBlock(fr)] : []), { type: 'text', text: `Image 1 is the real product photo${it.productKind === 'hoodie' ? ' of the BACK of the hoodie, where its big artwork is printed' : ''}. Image 2 is a lifestyle photo made for an advert, image 3 is the Pinterest advert made from it.${fr ? ' Image 4 is the real FRONT of the same hoodie (a small chest emblem only).' : ''} The small "BANIANS" wordmark or logo is the shop's own brand and is expected on the advert.
+Check: 1) in images 2 and 3 the garment colour and the printed artwork match image 1 closely (same design, not redrawn into something different, readable where the original has text); a buyer must not feel misled; 2) image 3 headline reads exactly "${it.copy.headline}" and "Free UK delivery", spelled right, and apart from the Banians logo there is no other stray text; 3) no warped faces, hands or extra limbs; 4) no third-party logos or brands; 5) premium, on-brand look (cosmic night sky meets nature, midnight blue).
 Return JSON only: {"ok": true or false, "score": 1-10, "problems": ["short problems, empty if none"], "fix": "one sentence for the designer"}. ok must be false if check 1 or 2 fails or score is below 7.` }]
     });
   }

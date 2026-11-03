@@ -348,6 +348,17 @@ async function retitleAll() {
 function start() {
   telegram.setDecisionHandler(decide);
   telegram.setIdeaHandler(text => marketing.addIdea(text));
+  // Hoodie adverts made before 3 Nov 18:45 used the front photo (small emblem) instead of the back print: redo those not yet approved.
+  if (!store.state.hoodieBackV1) {
+    store.state.hoodieBackV1 = true; store.save();
+    for (const it of store.state.items) {
+      if (it.kind === 'promo' && it.productKind === 'hoodie' && ['queued', 'awaiting_promo'].includes(it.status)) {
+        store.updateItem(it, { status: 'queued', mockup: null, mockupFront: null, lifestyle: null, pin: null, attempts: 0, check: null, feedback: null, errors: 0, retryAt: null, error: null });
+        store.log('Shqiponja', `redoing ${marketing.label(it)} with the hoodie's back print. My first version used the wrong product photo.`);
+        if (it.idea) telegram.sendText('🦅 Redoing your telescope advert: the first version used the front photo of the hoodie, so the back print was made up. The corrected one comes to you here shortly. Ignore the earlier one.');
+      }
+    }
+  }
   // Bekim's telescope idea (3 Nov), on the Star Map hoodie in midnight navy: the constellation design suits a stargazer.
   if (!store.state.ideaTelescope) {
     store.state.ideaTelescope = true; store.save();
