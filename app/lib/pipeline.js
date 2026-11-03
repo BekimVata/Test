@@ -290,6 +290,12 @@ Return JSON only: {"shopTitle": "under 55 characters", "announcement": "2-3 sent
 
 function start() {
   telegram.setDecisionHandler(decide);
+  // Clear review notes written when the eagle wrongly judged white artwork on a white background (fixed 3 Nov).
+  for (const it of store.state.items) {
+    if (it.status === 'queued' && /white background|white-on-white|near-white/i.test(it.feedback || '')) {
+      store.updateItem(it, { feedback: null });
+    }
+  }
   // Retry items that failed because Claude's replies were cut short (fixed 3 Nov).
   for (const it of store.state.items) {
     if (it.status === 'failed' && /did not return JSON/.test(it.error || '')) {
