@@ -318,19 +318,21 @@ Return JSON only: {"shopTitle": "under 55 characters", "announcement": "2-3 sent
 }
 
 async function retitleAll() {
-  let n = 0;
+  let n = 0, skipped = 0;
   for (const it of store.state.items) {
     const all = it.printifyAll || [];
     for (const m of all) {
       const title = shortTitle(it.direction, m.kind, it.colourway);
       if (!m.id || (m.listing && m.listing.title === title)) continue;
-      await printify.setTitle(m.shopId, m.id, title, !!m.published);
+      try { await printify.setTitle(m.shopId, m.id, title, !!m.published); }
+      catch (e) { if (/8252|disabled for editing/i.test(e.message)) { skipped++; continue; } throw e; } // still publishing: try later
       if (m.listing) m.listing.title = title;
       n++;
     }
     if (all.length) store.updateItem(it, { printifyAll: all, listing: all[0].listing, printify: all[0] });
   }
-  store.state.shortTitlesV1 = true; store.save();
+  if (!skipped) { store.state.shortTitlesV1 = true; store.save(); }
+  else setTimeout(() => retitleAll().catch(() => {}), 10 * 60 * 1000); // Printify locks products while publishing
   if (n) store.log('Teuta', `shortened ${n} listing titles, e.g. "${shortTitle('signal', 'sweatshirt', 'navy')}". Live ones update on Etsy within a few minutes.`);
 }
 
