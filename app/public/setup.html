@@ -21,8 +21,8 @@ h2 .st.ok{color:var(--good)} h2 .st.bad{color:var(--crit)}
 ol{margin:0;padding-left:20px;color:var(--muted);font-size:14px;display:flex;flex-direction:column;gap:4px}
 ol b{color:var(--ink)}
 label{font-size:13px;color:var(--muted)}
-input{width:100%;font:15px ui-monospace,Menlo,monospace;padding:10px 12px;border-radius:8px;border:1px solid var(--line);background:#15110f;color:var(--ink)}
-input:focus-visible,button:focus-visible{outline:2px solid var(--gold);outline-offset:2px}
+input,textarea{width:100%;font:15px ui-monospace,Menlo,monospace;padding:10px 12px;border-radius:8px;border:1px solid var(--line);background:#15110f;color:var(--ink)}
+input:focus-visible,textarea:focus-visible,button:focus-visible{outline:2px solid var(--gold);outline-offset:2px}
 .saved{font-size:12.5px;color:var(--muted)}
 .row{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px}
 @media (max-width:520px){.row{grid-template-columns:1fr}}
@@ -78,7 +78,20 @@ button.primary{background:var(--red);border-color:var(--red);color:#fff}
   </section>
 
   <section>
-    <h2>6 · Office password <span class="st">optional</span></h2>
+    <h2>6 · Marketing</h2>
+    <label for="mktTheme">Campaign theme and idea (the marketing team builds every advert around this)</label>
+    <textarea id="mktTheme" rows="3" maxlength="600"></textarea>
+    <div class="row">
+      <div><label for="mktPromos">New adverts per day</label><input id="mktPromos" type="number" min="0" max="10" step="1"></div>
+      <div><label for="mktPins">Pinterest pins per day</label><input id="mktPins" type="number" min="1" max="5" step="1"></div>
+      <div><label for="mktVideos">Videos per week</label><input id="mktVideos" type="number" min="0" max="14" step="1"></div>
+    </div>
+    <span class="saved">Each advert costs about 15p (two images and the eagle's check); each 5-second video about 35p. Set adverts per day to 0 to pause marketing.</span>
+  </section>
+
+
+  <section>
+    <h2>7 · Office password <span class="st">optional</span></h2>
     <label for="newPassword">New password (leave empty to keep the current one)</label><input id="newPassword" type="password" autocomplete="new-password">
   </section>
 
@@ -102,6 +115,7 @@ function show(c) {
   $('priceSweatshirt').value = (c.prices.sweatshirt / 100).toFixed(2);
   $('priceHoodie').value = ((c.prices.hoodie || 4499) / 100).toFixed(2);
 }
+function showMkt(m) { if (!m) return; $('mktTheme').value = m.theme || ''; $('mktPromos').value = m.promosPerDay; $('mktPins').value = m.pinsPerDay; $('mktVideos').value = m.videosPerWeek; }
 async function runTests() {
   $('msg').textContent = 'Testing connections…';
   document.querySelectorAll('[data-st]').forEach(e => { e.textContent = 'testing…'; e.className = 'st'; });
@@ -115,13 +129,14 @@ $('save').onclick = async () => {
   const body = {};
   for (const k of ['anthropicKey', 'ideogramKey', 'printifyToken', 'telegramToken', 'newPassword']) if ($(k).value.trim()) body[k] = $(k).value.trim();
   body.dailyCapGBP = $('dailyCapGBP').value; body.priceSweatshirt = $('priceSweatshirt').value; body.priceHoodie = $('priceHoodie').value;
+  body.marketing = { theme: $('mktTheme').value, promosPerDay: $('mktPromos').value, pinsPerDay: $('mktPins').value, videosPerWeek: $('mktVideos').value };
   const r = await api('/api/settings', body);
   if (r.error) { $('msg').textContent = r.error; return; }
   for (const k of ['anthropicKey', 'ideogramKey', 'printifyToken', 'telegramToken', 'newPassword']) $(k).value = '';
   show(r.config); runTests();
 };
 $('test').onclick = runTests;
-api('/api/state').then(s => show(s.config));
+api('/api/state').then(s => { show(s.config); showMkt(s.marketing); });
 </script>
 </body>
 </html>

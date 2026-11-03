@@ -13,9 +13,10 @@ const printify = require('./printify');
 const telegram = require('./telegram');
 const { BRAND, COLLECTION, DIRECTIONS, COLOURWAYS, colourway, EMBLEM_PROMPT, designPrompt, shortTitle } = require('./briefs');
 const preview = require('./preview');
+const marketing = require('./marketing');
 
-const ACTIONABLE = ['queued', 'approved_design', 'approved_publish'];
-const EST = { queued: 0.12, approved_design: 0.02, approved_publish: 0 }; // £ per step, for the cap
+const ACTIONABLE = ['queued', 'approved_design', 'approved_publish', 'approved_promo'];
+const EST = { queued: 0.12, approved_design: 0.02, approved_publish: 0, approved_promo: 0.35 }; // £ per step, for the cap
 let busy = false;
 let capNotedDay = '';
 
@@ -23,7 +24,7 @@ const gbp = n => '£' + (n / 100).toFixed(2);
 const productName = p => p === 'sweatshirt' ? 'Christmas jumper' : p === 'hoodie' ? 'Christmas hoodie' : p;
 const productsOf = it => it.products || [it.product];
 const cwName = it => it.colourway && it.colourway !== 'navy' ? ` (${colourway(it.colourway).name})` : '';
-const label = it => it.kind === 'kit' ? 'shop kit' : `${DIRECTIONS[it.direction]?.name || it.direction}${cwName(it)} ${productsOf(it).map(productName).join(' + ')}`;
+const label = it => it.kind === 'promo' ? require('./marketing').label(it) : it.kind === 'kit' ? 'shop kit' : `${DIRECTIONS[it.direction]?.name || it.direction}${cwName(it)} ${productsOf(it).map(productName).join(' + ')}`;
 const icon = it => it.product === 'mug' ? 'mug' : it.kind === 'kit' ? 'doc' : 'shirt';
 
 function enqueueBatch(directions = Object.keys(DIRECTIONS), products = ['sweatshirt', 'hoodie'], colourways = ['navy']) {
@@ -53,6 +54,11 @@ async function decide(id, stage, ok, by = 'office') {
     if (!ok) store.act('arben', 'sad');
     return true;
   }
+  if (stage === 'promo' && it.kind === 'promo') {
+    const done = marketing.decidePromo(it, ok);
+    if (done) store.log('You', `${ok ? 'approved' : 'rejected'} ${marketing.label(it)} (${by}).`);
+    return done;
+  }
   if (stage === 'publish' && it.status === 'awaiting_publish') {
     store.updateItem(it, { status: ok ? 'approved_publish' : 'rejected' });
     store.log('You', `${ok ? 'said publish' : 'held back'} ${it.listing?.title ? '"' + it.listing.title.slice(0, 50) + '"' : label(it)} (${by}).`);
@@ -80,7 +86,9 @@ async function tick() {
   if (cfg.paused) return;
   const now = Date.now();
   // Your decisions move first, then the shop kit, then new designs.
-  const rank = i => i.status === 'approved_publish' ? 0 : i.status === 'approved_design' ? 1 : i.kind === 'kit' ? 2 : 3;
+  const rank = i => i.status === 'approved_publish' ? 0 : i.status === 'approved_design' ? 1 : i.status === 'approved_promo' ? 2 : i.kind === 'kit' ? 3 : i.kind === 'promo' ? 5 : 4;
+  // The marketing team plans its adverts when no design work is waiting.
+  if (!store.state.items.some(i => i.kind === 'design' && ACTIONABLE.includes(i.status))) { try { marketing.planToday(); } catch (e) { console.error('plan', e); } }
   const it = store.state.items
     .filter(i => ACTIONABLE.includes(i.status) && (!i.retryAt || i.retryAt <= now))
     .sort((a, b) => rank(a) - rank(b) || a.id - b.id)[0];
@@ -88,6 +96,7 @@ async function tick() {
   busy = true;
   try {
     if (it.kind === 'kit') await makeKit(it);
+    else if (it.kind === 'promo') { if (it.status === 'queued') await marketing.makeAdvert(it); else await marketing.scheduleAdvert(it); }
     else if (it.status === 'queued') await designStep(it);
     else if (it.status === 'approved_design') await productStep(it);
     else if (it.status === 'approved_publish') await publishStep(it);
@@ -97,7 +106,7 @@ async function tick() {
     const msg = e.message || String(e);
     store.updateItem(it, { errors: tries, error: msg, retryAt: Date.now() + 60000 * tries });
     store.log('Shqiponja', `problem with ${label(it)}: ${msg.slice(0, 160)}${tries < 4 ? ' Trying again shortly.' : ''}`);
-    ['drita', 'arben', 'teuta', 'gjergj'].forEach(a => store.act(a, 'idle'));
+    ['drita', 'arben', 'teuta', 'gjergj', 'besnik', 'lule', 'ilir', 'era'].forEach(a => store.act(a, 'idle'));
     if (tries >= 4) {
       store.updateItem(it, { status: 'failed' });
       telegram.sendText(`🦅 ${label(it)} failed after 4 tries: ${msg.slice(0, 300)}`);

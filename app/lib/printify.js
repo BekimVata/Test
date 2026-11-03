@@ -203,4 +203,10 @@ async function test() {
 
 async function colours(kind) { const cat = await catalogFor(kind); return { provider: cat.providerTitle, colours: [...new Set(cat.variants.map(v => v.color))] }; }
 
-module.exports = { setTitle, colours, createProduct, publish, test, ensureShop, catalogFor, isNotConnected: e => /8254|not connected to sales channel/i.test(String(e && e.message || e)) };
+// Etsy link and mockup photos of a published product.
+async function productInfo(shopId, productId) {
+  const p = await api('GET', `/shops/${shopId}/products/${productId}.json`);
+  return { etsyUrl: p.external?.handle || '', images: (p.images || []).map(i => ({ src: i.src, position: i.position, isDefault: i.is_default })) };
+}
+
+module.exports = { productInfo, setTitle, colours, createProduct, publish, test, ensureShop, catalogFor, isNotConnected: e => /8254|not connected to sales channel/i.test(String(e && e.message || e)) };

@@ -201,6 +201,10 @@ a.btn{text-decoration:none;display:inline-flex;align-items:center}
         <h2>Pipeline <small>every design and where it is</small></h2>
         <ul class="pipe" id="pipe"></ul>
       </section>
+      <section class="card">
+        <h2>Marketing <small>Pinterest, TikTok and Reels · change the theme in Settings</small></h2>
+        <div id="mkt"></div>
+      </section>
       <section class="card" id="kitCard" hidden>
         <h2>Shop kit <small>upload these to Etsy</small></h2>
         <div id="kit"></div>
@@ -215,7 +219,7 @@ a.btn{text-decoration:none;display:inline-flex;align-items:center}
       </section>
     </div>
   </div>
-  <p class="foot">Banians office · estimates of AI spend are conservative · Fiverr team arrives in phase 2</p>
+  <p class="foot">Banians office · estimates of AI spend are conservative · the Fiverr team is on marketing until the Etsy shop is selling</p>
 </div>
 
 <script>
@@ -242,7 +246,7 @@ let S = 3, L = null; // pixel scale, layout
 const LAYOUTS = {
   wide: {
     W:320, H:200, wallH:44, portrait:false,
-    rows:[{y:64, aisle:96, label:"ETSY TEAM", ly:82}, {y:124, aisle:158, label:"FIVERR TEAM", ly:142}],
+    rows:[{y:64, aisle:96, label:"ETSY TEAM", ly:82}, {y:124, aisle:158, label:"MARKETING TEAM", ly:142}],
     deskXs:[14,58,102,146], deskW:32,
     spineX:194,
     approval:{x:214,y:70,w:40}, accountant:{x:214,y:146,w:32},
@@ -254,7 +258,7 @@ const LAYOUTS = {
   },
   tall: {
     W:192, H:262, wallH:40, portrait:true,
-    rows:[{y:60, aisle:90, label:"ETSY TEAM", ly:78}, {y:114, aisle:144, label:"FIVERR TEAM", ly:132}],
+    rows:[{y:60, aisle:90, label:"ETSY TEAM", ly:78}, {y:114, aisle:144, label:"MARKETING TEAM", ly:132}],
     deskXs:[6,50,94,138], deskW:32,
     spineX:184,
     approval:{x:10,y:176,w:40}, accountant:{x:10,y:226,w:32},
@@ -391,10 +395,10 @@ const drita  = mk("drita","Drita","Trend researcher","etsy","f","#b71c1c","#e0b3
 const arben  = mk("arben","Arben","Designer","etsy","m","#1a1a1a","#e0b341",0,1);
 const teuta  = mk("teuta","Teuta","Listing writer","etsy","f","#6d1b26","#e0b341",0,2,{hair:"#4a2a18"});
 const gjergj = mk("gjergj","Gjergj","Uploader","etsy","m","#2f4f3a","#d21f2e",0,3);
-const besnik = mk("besnik","Besnik","Order manager","fiverr","m","#1f3a5f","#e0b341",1,0);
-const lule   = mk("lule","Lule","Thumbnails & logos","fiverr","f","#9c2f5c","#f4efe4",1,1,{hair:"#1a1210"});
-const ilir   = mk("ilir","Ilir","Copywriter","fiverr","m","#6b4e2e","#e0b341",1,2);
-const era    = mk("era","Era","Data cleaner","fiverr","f","#33335e","#e0b341",1,3,{hair:"#5a3a22"});
+const besnik = mk("besnik","Besnik","Campaign manager","fiverr","m","#1f3a5f","#e0b341",1,0);
+const lule   = mk("lule","Lule","Ad designer","fiverr","f","#9c2f5c","#f4efe4",1,1,{hair:"#1a1210"});
+const ilir   = mk("ilir","Ilir","Ad copywriter","fiverr","m","#6b4e2e","#e0b341",1,2);
+const era    = mk("era","Era","Video maker","fiverr","f","#33335e","#e0b341",1,3,{hair:"#5a3a22"});
 const agron  = mk("agron","Agron","Accountant","acct","m","#3b3b3b","#e0b341",-1,-1);
 
 const master = {name:"Shqiponja", x:0,y:0,tx:0,ty:0,flying:false,state:"perched",bubble:null,bubbleT:0,lock:new Lock(),arrive:null,t:0,whip:null};
@@ -633,7 +637,7 @@ function loop(now){
 const rosterEl = document.getElementById('roster');
 const minis = new Map();
 function buildRoster(){
-  const groups = [["Master",[null]],["Etsy team",[drita,arben,teuta,gjergj]],["Fiverr team",[besnik,lule,ilir,era]],["Back office",[agron]]];
+  const groups = [["Master",[null]],["Etsy team",[drita,arben,teuta,gjergj]],["Marketing team",[besnik,lule,ilir,era]],["Back office",[agron]]];
   rosterEl.innerHTML = "";
   for (const [g, list] of groups){
     const h=document.createElement('h3'); h.textContent=g; rosterEl.appendChild(h);
@@ -702,10 +706,11 @@ function notify(msg){ toastText.textContent = msg; toastEl.classList.add('show')
 // ================= LIVE MODE: driven by the real office server =================
 const LIVE = { items: [], summary: {}, config: {}, directions: {}, mock: false };
 const byId = { drita, arben, teuta, gjergj, besnik, lule, ilir, era, agron };
-const ROLE_NOTE = { besnik: "Phase 2", lule: "Phase 2", ilir: "Phase 2", era: "Phase 2" };
+const ROLE_NOTE = {};
 const STATUS = {
   queued: ["working", "Designing"], awaiting_design: ["waiting", "Your approval"], approved_design: ["working", "Making product"],
   awaiting_publish: ["waiting", "Publish?"], approved_publish: ["working", "Publishing"], published: ["done", "Live on Etsy"],
+  awaiting_promo: ["waiting", "Approve advert"], approved_promo: ["working", "Scheduling"], scheduled: ["done", "Scheduled"],
   rejected: ["asleep", "Rejected"], failed: ["waiting", "Failed"], delivered: ["done", "Delivered"]
 };
 const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
@@ -771,13 +776,14 @@ function addLog(line, prepend = true) {
 }
 
 // ----- panels -----
-function itemTitle(i) { const n = p => p === "sweatshirt" ? "jumper" : p; return i.kind === "kit" ? "Shop kit" : `${i.directionName || i.direction}${i.colourway && i.colourway !== "navy" ? " (" + i.colourwayName + ")" : ""} · ${(i.products || [i.product]).map(n).join(" + ")}`; }
+function itemTitle(i) { const n = p => p === "sweatshirt" ? "jumper" : p; if (i.kind === "promo" && i.promo) return i.promo.label; return i.kind === "kit" ? "Shop kit" : `${i.directionName || i.direction}${i.colourway && i.colourway !== "navy" ? " (" + i.colourwayName + ")" : ""} · ${(i.products || [i.product]).map(n).join(" + ")}`; }
 function renderApprovals() {
-  const waiting = LIVE.items.filter(i => i.status === "awaiting_design" || i.status === "awaiting_publish");
+  const waiting = LIVE.items.filter(i => i.status === "awaiting_design" || i.status === "awaiting_publish" || i.status === "awaiting_promo");
   st.approvals = waiting; st.pile = waiting.length;
   apprEl.innerHTML = "";
   if (!waiting.length) { apprEl.innerHTML = `<div class="empty">Nothing waiting. You'll get a Telegram notification when an agent brings work to your desk.</div>`; return; }
   for (const it of waiting) {
+    if (it.status === "awaiting_promo") { apprEl.appendChild(promoCard(it)); continue; }
     const pub = it.status === "awaiting_publish";
     const img = pub && it.mockups && it.mockups[0] ? it.mockups[0] : (it.preview || it.design ? "/files/" + encodeURIComponent(it.preview || it.design) : "");
     const d = document.createElement("div"); d.className = "appr live";
@@ -793,9 +799,36 @@ function renderApprovals() {
     apprEl.appendChild(d);
   }
 }
+function promoCard(it) {
+  const p = it.promo || {}, c = p.copy || {};
+  const d = document.createElement("div"); d.className = "appr live fiverr";
+  d.innerHTML = `<img src="/files/${encodeURIComponent(p.pin || "")}" alt="Pinterest advert" loading="lazy"><div>
+    <div class="t">Approve this advert?</div>
+    <div class="m">${esc(itemTitle(it))}${it.check && it.check.score ? ` · eagle's score ${it.check.score}/10` : ""}</div>
+    <div class="m"><b>Headline:</b> ${esc(c.headline)}</div>
+    <div class="m"><b>Pinterest:</b> ${esc(c.pinTitle)}</div>
+    <div class="m"><b>TikTok/Reels:</b> ${esc(c.caption)}</div>
+    ${p.lifestyle ? `<div class="m"><a href="/files/${encodeURIComponent(p.lifestyle)}" target="_blank" rel="noopener">See the lifestyle photo</a></div>` : ""}
+    ${it.check && it.check.problems && it.check.problems.length ? `<div class="m warn">Eagle's notes: ${esc(it.check.problems.join("; "))}</div>` : ""}
+    <div class="btns"><button class="btn ok">Approve</button><button class="btn no">Reject</button></div></div>`;
+  d.querySelector(".ok").onclick = () => decide(it, true, d);
+  d.querySelector(".no").onclick = () => decide(it, false, d);
+  return d;
+}
 async function decide(it, ok, el) {
   el.querySelectorAll("button").forEach(b => b.disabled = true);
-  await api("/api/decide", { id: it.id, stage: it.status === "awaiting_publish" ? "publish" : "design", ok });
+  await api("/api/decide", { id: it.id, stage: it.status === "awaiting_publish" ? "publish" : it.status === "awaiting_promo" ? "promo" : "design", ok });
+}
+function renderMarketing() {
+  const m = LIVE.marketing || {}, el = document.getElementById("mkt"); if (!el) return;
+  const ads = LIVE.items.filter(i => i.kind === "promo");
+  const sched = ads.filter(i => i.status === "scheduled");
+  const vids = ads.filter(i => i.promo && i.promo.video).length;
+  el.innerHTML = `<div class="m"><b>Theme:</b> ${esc(m.theme || "")}</div>
+    <div class="m">${sched.length} adverts approved · ${m.pinsTotal || 0} Pinterest pins scheduled · ${vids} videos made · up to ${m.promosPerDay ?? 3} new adverts a day</div>
+    <div class="m">${m.pinsQueued ? `<b>${m.pinsQueued} new pins</b> are ready for Pinterest. <a href="/api/pinterest.csv">Download the spreadsheet</a>, then in Pinterest: Settings → Bulk create Pins → upload it. Then <a href="#" id="pinsDone">tell the office it's uploaded</a>.` : "No new pins waiting for upload."}</div>
+    <div class="kitimgs">${sched.slice(-6).reverse().map(i => `<a href="/files/${encodeURIComponent(i.promo.pin)}" target="_blank" rel="noopener"><img src="/files/${encodeURIComponent(i.promo.pin)}" alt=""><span>${esc(i.promo.copy && i.promo.copy.headline || "")}</span></a>`).join("")}</div>`;
+  const done = document.getElementById("pinsDone"); if (done) done.onclick = async e => { e.preventDefault(); await api("/api/pinterest-uploaded", {}); };
 }
 function renderPipe() {
   const el = document.getElementById("pipe"); el.innerHTML = "";
@@ -804,8 +837,8 @@ function renderPipe() {
   for (const i of items) {
     const [cls, lab] = STATUS[i.status] || ["asleep", i.status];
     const li = document.createElement("li");
-    const thumb = i.preview || i.design ? `<img src="/files/${encodeURIComponent(i.preview || i.design)}" alt="">` : `<span class="ph"></span>`;
-    li.innerHTML = `${thumb}<div><div class="n">#${i.id} ${esc(itemTitle(i))}</div><div class="r">${i.error && i.status !== "published" ? "Problem: " + esc(i.error.slice(0, 90)) : i.listing ? esc(i.listing.title.slice(0, 70)) : i.attempts ? `Design attempt ${i.attempts}` : "Waiting to start"}</div></div><span class="chip ${cls}">${lab}</span>`;
+    const pv = i.promo ? i.promo.pin : (i.preview || i.design); const thumb = pv ? `<img src="/files/${encodeURIComponent(pv)}" alt="">` : `<span class="ph"></span>`;
+    li.innerHTML = `${thumb}<div><div class="n">#${i.id} ${esc(itemTitle(i))}</div><div class="r">${i.error && i.status !== "published" ? "Problem: " + esc(i.error.slice(0, 90)) : i.promo && i.promo.copy ? esc(i.promo.copy.headline) : i.listing ? esc(i.listing.title.slice(0, 70)) : i.attempts ? `Design attempt ${i.attempts}` : "Waiting to start"}</div></div><span class="chip ${cls}">${lab}</span>`;
     if (i.status === "failed") { const b = document.createElement("button"); b.className = "btn"; b.textContent = "Retry"; b.onclick = () => api("/api/retry", { id: i.id }); li.appendChild(b); }
     el.appendChild(li);
   }
@@ -852,7 +885,7 @@ function renderStatus() {
   document.getElementById("btnPause").textContent = c.paused ? "Resume office" : "Pause office";
   document.getElementById("shopSub").textContent = "Your AI team · Cosmic Christmas collection";
 }
-function renderAll() { renderApprovals(); renderPipe(); renderKit(); renderPanels(); renderStatus(); }
+function renderAll() { renderApprovals(); renderPipe(); renderKit(); renderMarketing(); renderPanels(); renderStatus(); }
 
 // ----- state + live events -----
 async function loadState() {
@@ -863,7 +896,7 @@ async function loadState() {
   renderAll();
 }
 let refreshTimer;
-function refreshSoon() { clearTimeout(refreshTimer); refreshTimer = setTimeout(async () => { const s = await api("/api/state"); Object.assign(LIVE, { items: s.items, summary: s.summary, config: s.config }); renderAll(); }, 400); }
+function refreshSoon() { clearTimeout(refreshTimer); refreshTimer = setTimeout(async () => { const s = await api("/api/state"); Object.assign(LIVE, { items: s.items, summary: s.summary, config: s.config, marketing: s.marketing }); renderAll(); }, 400); }
 function connect() {
   const es = new EventSource("/api/events");
   es.onmessage = m => {
@@ -874,7 +907,7 @@ function connect() {
       const i = LIVE.items.findIndex(x => x.id === e.item.id);
       const before = i >= 0 ? LIVE.items[i].status : null;
       if (i >= 0) LIVE.items[i] = e.item; else LIVE.items.push(e.item);
-      if (before !== e.item.status && (e.item.status === "awaiting_design" || e.item.status === "awaiting_publish")) notify(`${e.item.status === "awaiting_publish" ? "Ready to publish" : "New design to approve"}: ${itemTitle(e.item)}`);
+      if (before !== e.item.status && (e.item.status === "awaiting_design" || e.item.status === "awaiting_publish" || e.item.status === "awaiting_promo")) notify(`${e.item.status === "awaiting_publish" ? "Ready to publish" : e.item.status === "awaiting_promo" ? "New advert to approve" : "New design to approve"}: ${itemTitle(e.item)}`);
       refreshSoon();
     }
     else if (e.type === "money") { enqueue("agron", async () => { startWork(agron, "Logging costs"); await sleep(1500); stopWork(agron); }); refreshSoon(); }
