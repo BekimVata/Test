@@ -125,6 +125,13 @@ const server = http.createServer(async (req, res) => {
   const p = url.pathname;
   try {
     if (p === '/health') return send(res, 200, { ok: true });
+    // Private share links for finished images (logo, banner, designs) so other sites, like Etsy, can fetch them.
+    const sm = /^\/share\/([a-f0-9]{32})\/([\w.-]+\.png)$/.exec(p);
+    if (sm) {
+      if (sm[1] !== config.load().shareToken) return send(res, 404, { error: 'Not found' });
+      return fs.readFile(path.join(config.DATA, 'files', path.basename(sm[2])), (err, data) => err ? send(res, 404, { error: 'Not found' })
+        : send(res, 200, data, 'image/png', { 'Access-Control-Allow-Origin': '*', 'Cache-Control': 'private, max-age=600' }));
+    }
     if (p === '/login' && req.method === 'GET') return file(res, path.join(PUB, 'login.html'));
     if (p === '/login' && req.method === 'POST') {
       const a = limited(req);
@@ -164,6 +171,7 @@ const server = http.createServer(async (req, res) => {
       return file(res, path.join(config.DATA, 'files', name));
     }
     if (p === '/api/state') return send(res, 200, snapshot());
+    if (p === '/api/share') return send(res, 200, { base: `/share/${config.load().shareToken}/` });
     if (p === '/api/events') {
       res.writeHead(200, { 'Content-Type': 'text/event-stream', 'Cache-Control': 'no-store', Connection: 'keep-alive', 'X-Accel-Buffering': 'no' });
       res.write('retry: 3000\n\n');

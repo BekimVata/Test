@@ -43,6 +43,7 @@ function load() {
   cfg.modelPricesUSD = Object.assign({}, DEFAULTS.modelPricesUSD, saved.modelPricesUSD || {});
   if (!cfg.sessionSecret) cfg.sessionSecret = crypto.randomBytes(32).toString('hex');
   if (!cfg.pairCode) cfg.pairCode = String(crypto.randomInt(100000, 999999));
+  if (!cfg.shareToken) cfg.shareToken = crypto.randomBytes(16).toString('hex');
   save();
   return cfg;
 }
@@ -93,7 +94,8 @@ function publicView() {
       printify: mask(cfg.printifyToken),
       telegram: mask(cfg.telegramToken)
     },
-    printifyShopId: cfg.printifyShopId
+    printifyShopId: cfg.printifyShopId,
+    shareToken: cfg.shareToken
   };
 }
 
