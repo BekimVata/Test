@@ -12,6 +12,8 @@ const ideogram = require('./ideogram');
 const printify = require('./printify');
 const telegram = require('./telegram');
 const { BRAND, COLLECTION, DIRECTIONS, EMBLEM_PROMPT, designPrompt } = require('./briefs');
+const preview = require('./preview');
+const GARMENT_HEX = '#14213D';
 
 const ACTIONABLE = ['queued', 'approved_design', 'approved_publish'];
 const EST = { queued: 0.12, approved_design: 0.02, approved_publish: 0 }; // £ per step, for the cap
@@ -126,7 +128,8 @@ async function designStep(it) {
   const img = await ideogram.generate({ prompt: designPrompt(it.direction, it.product, it.feedback), fileName: `design-${it.id}-${(it.attempts || 0) + 1}.png`, agent: 'Arben' });
   store.act('arben', 'idle');
   const files = (it.files || []).concat(img.file);
-  store.updateItem(it, { files, design: img.file, designUrl: img.url, seed: img.seed, attempts: (it.attempts || 0) + 1 });
+  const prev = preview.onGarment(img.file, GARMENT_HEX);
+  store.updateItem(it, { files, design: img.file, preview: prev, designUrl: img.url, seed: img.seed, attempts: (it.attempts || 0) + 1 });
   store.log('Arben', `finished design ${it.attempts} for ${label(it)}.`);
 
   // The eagle inspects.
@@ -141,7 +144,7 @@ async function designStep(it) {
   store.log('Shqiponja', check.ok ? `approved ${label(it)} (${check.score}/10). Over to you.` : `${label(it)} still isn't perfect after 3 tries. Sending it to you with my notes.`);
   store.act('arben', 'approval', { icon: icon(it) });
   await telegram.askApproval({
-    itemId: it.id, stage: 'design', file: img.file,
+    itemId: it.id, stage: 'design', file: it.preview || img.file,
     caption: `🎨 Design #${it.id}: ${d.name} · ${productName(it.product)}\nSlogan: ${d.text}\nEagle's score: ${check.score ?? '–'}/10${check.ok ? '' : ' ⚠️ ' + (check.problems || []).join('; ')}\n\nApprove to turn it into a product.`
   });
 }
@@ -149,7 +152,8 @@ async function designStep(it) {
 async function inspect(it, img) {
   const d = DIRECTIONS[it.direction];
   // Send the file itself (Ideogram's image links can't be opened by Claude).
-  const buf = fs.readFileSync(path.join(config.DATA, 'files', img.file || it.design));
+  // The eagle looks at the navy preview, exactly as the design will look on the garment.
+  const buf = fs.readFileSync(path.join(config.DATA, 'files', it.preview || img.file || it.design));
   if (buf.length > 3.7 * 1024 * 1024) {
     store.log('Shqiponja', `${label(it)} is too large for me to inspect, so it goes to you unchecked.`);
     return { ok: true, score: null, problems: ['not checked by the eagle (file too large)'], fix: '' };
@@ -160,7 +164,7 @@ async function inspect(it, img) {
     system: 'You are the strict but fair art director of a print-on-demand shop. You only pass designs that are ready to print and sell.',
     content: [
       { type: 'image', source },
-      { type: 'text', text: `Inspect this design for a ${productsOf(it).map(productName).join(' and ')}. IMPORTANT: the artwork has a transparent background and will be printed on a ${COLLECTION.garment || 'dark navy'} garment. White, silver and pale elements are intentional: judge contrast as if the background were ${COLLECTION.garment || 'dark navy'}, never white. Brief: "${d.name}", palette ${d.palette}, look: ${d.look}. Text rule: ${d.textRule || 'The only text must read exactly: "' + d.text + '".'}
+      { type: 'text', text: `Inspect this design for a ${productsOf(it).map(productName).join(' and ')}. IMPORTANT: the artwork is shown here on a navy background, as it will look printed on a ${COLLECTION.garment || 'dark navy'} garment. White, silver and pale elements are intentional: judge contrast as if the background were ${COLLECTION.garment || 'dark navy'}, never white. Brief: "${d.name}", palette ${d.palette}, look: ${d.look}. Text rule: ${d.textRule || 'The only text must read exactly: "' + d.text + '".'}
 Check: 1) the text rule above is met and every word is spelled right; 2) colours match the palette; 3) artwork is isolated, no shirt, mockup, frame or background scene; 4) no brand logos, trademarks or known characters; 5) printable: no hairlines too thin to print, nothing tiny or cut off; 6) does it look stylish and sellable.
 Return JSON only: {"ok": true or false, "score": 1-10, "problems": ["short problems, empty if none"], "fix": "one sentence telling the designer exactly what to change"}. ok must be false if the text rule fails or score is below 7.` }
     ]

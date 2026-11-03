@@ -779,7 +779,7 @@ function renderApprovals() {
   if (!waiting.length) { apprEl.innerHTML = `<div class="empty">Nothing waiting. You'll get a Telegram notification when an agent brings work to your desk.</div>`; return; }
   for (const it of waiting) {
     const pub = it.status === "awaiting_publish";
-    const img = pub && it.mockups && it.mockups[0] ? it.mockups[0] : (it.design ? "/files/" + encodeURIComponent(it.design) : "");
+    const img = pub && it.mockups && it.mockups[0] ? it.mockups[0] : (it.preview || it.design ? "/files/" + encodeURIComponent(it.preview || it.design) : "");
     const d = document.createElement("div"); d.className = "appr live";
     const margin = it.price && it.cost ? ` · cost ${money(it.cost / 100)} · about ${money((it.price - it.cost) / 100)} before Etsy fees` : "";
     d.innerHTML = `<img src="${esc(img)}" alt="${esc(itemTitle(it))}" loading="lazy"><div>
@@ -804,7 +804,7 @@ function renderPipe() {
   for (const i of items) {
     const [cls, lab] = STATUS[i.status] || ["asleep", i.status];
     const li = document.createElement("li");
-    const thumb = i.design ? `<img src="/files/${encodeURIComponent(i.design)}" alt="">` : `<span class="ph"></span>`;
+    const thumb = i.preview || i.design ? `<img src="/files/${encodeURIComponent(i.preview || i.design)}" alt="">` : `<span class="ph"></span>`;
     li.innerHTML = `${thumb}<div><div class="n">#${i.id} ${esc(itemTitle(i))}</div><div class="r">${i.error && i.status !== "published" ? "Problem: " + esc(i.error.slice(0, 90)) : i.listing ? esc(i.listing.title.slice(0, 70)) : i.attempts ? `Design attempt ${i.attempts}` : "Waiting to start"}</div></div><span class="chip ${cls}">${lab}</span>`;
     if (i.status === "failed") { const b = document.createElement("button"); b.className = "btn"; b.textContent = "Retry"; b.onclick = () => api("/api/retry", { id: i.id }); li.appendChild(b); }
     el.appendChild(li);
