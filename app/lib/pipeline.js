@@ -148,13 +148,13 @@ async function designStep(it) {
 
 async function inspect(it, img) {
   const d = DIRECTIONS[it.direction];
-  let source;
-  if (img.url) source = { type: 'url', url: img.url };
-  else {
-    const buf = fs.readFileSync(path.join(config.DATA, 'files', img.file));
-    if (buf.length > 4.5 * 1024 * 1024) return { ok: true, score: null, problems: [], note: 'too large to check' };
-    source = { type: 'base64', media_type: 'image/png', data: buf.toString('base64') };
+  // Send the file itself (Ideogram's image links can't be opened by Claude).
+  const buf = fs.readFileSync(path.join(config.DATA, 'files', img.file || it.design));
+  if (buf.length > 3.7 * 1024 * 1024) {
+    store.log('Shqiponja', `${label(it)} is too large for me to inspect, so it goes to you unchecked.`);
+    return { ok: true, score: null, problems: ['not checked by the eagle (file too large)'], fix: '' };
   }
+  const source = { type: 'base64', media_type: 'image/png', data: buf.toString('base64') };
   return claude.askJSON({
     model: 'smart', agent: 'Shqiponja', what: 'design inspection', mockKind: 'check', maxTokens: 600,
     system: 'You are the strict but fair art director of a print-on-demand shop. You only pass designs that are ready to print and sell.',
