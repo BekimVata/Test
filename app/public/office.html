@@ -850,7 +850,7 @@ function renderStatus() {
   else if (!c.telegramPaired) txt.innerHTML = `Keys saved. Pair Telegram on the <a href="/setup">Settings page</a> to get iPhone approvals.`;
   else txt.textContent = c.paused ? "Paused. Nobody starts new work until you resume." : `Connected to Printify, Ideogram, Claude and Telegram. Daily AI cap ${money(c.dailyCapGBP)}.`;
   document.getElementById("btnPause").textContent = c.paused ? "Resume office" : "Pause office";
-  document.getElementById("shopSub").textContent = `The Eagle's Office for ${c.shopName || "Banians"}`;
+  document.getElementById("shopSub").textContent = `The Eagle's Office for ${c.shopName || "Banians"} · Cosmic Christmas collection`;
 }
 function renderAll() { renderApprovals(); renderPipe(); renderKit(); renderPanels(); renderStatus(); }
 
