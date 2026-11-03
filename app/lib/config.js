@@ -11,6 +11,7 @@ const DEFAULTS = {
   shopName: 'Banians',
   dailyCapGBP: 3,
   usdToGbp: 0.79,
+  costCurrency: 'USD',              // Printify shows production costs in the account currency
   // Prices in pence, in your Printify/Etsy shop currency.
   prices: { sweatshirt: 3999, hoodie: 4499, mug: 1999 },
   ideogramCostUSD: 0.10,            // estimate per image, used for the spend cap

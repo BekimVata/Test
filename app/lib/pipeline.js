@@ -233,9 +233,9 @@ async function productStep(it) {
     store.log('Gjergj', `built the ${productName(kind)} draft: ${prod.variantCount} variants at ${gbp(prod.price)}${prod.cost ? `, cost ${gbp(prod.cost)}, about ${gbp(margin)} before Etsy fees` : ''}.`);
     if (margin !== null && margin < 600) store.log('Agron', `warning: the margin on the ${productName(kind)} is thin. Consider raising its price in Settings.`);
   }
-  store.updateItem(it, { printify: made[0], listing: made[0].listing, status: 'awaiting_publish' });
+  store.updateItem(it, { printify: made[0], listing: made[0].listing, status: 'awaiting_publish', pricingV2: true });
   store.act('gjergj', 'approval', { icon: icon(it) });
-  const lines = made.map(m => `• ${productName(m.kind)}: ${gbp(m.price)}${m.cost ? ` (cost ${gbp(m.cost)}, ~${gbp(m.price - m.cost)} before Etsy fees)` : ''}`).join('\n');
+  const lines = made.map(m => `• ${productName(m.kind)}: from ${gbp(m.price)}${m.cost ? ` (making it costs about ${gbp(m.cost)}; bigger sizes priced up to match)` : ''}`).join('\n');
   await telegram.askApproval({
     itemId: it.id, stage: 'publish', url: made[0].mockups[0], file: made[0].mockups[0] ? null : it.design,
     caption: `🛍️ Ready for Etsy: ${d.name}\n${lines}\n\nPublish ${made.length > 1 ? 'all ' + made.length : 'it'} to ${cfg.shopName}? Remember: Etsy needs a real photo of each item. Add yours once your samples arrive.`
@@ -294,6 +294,13 @@ Return JSON only: {"shopTitle": "under 55 characters", "announcement": "2-3 sent
 
 function start() {
   telegram.setDecisionHandler(decide);
+  // Rebuild products made before the provider and pricing changes (3 Nov): new provider, pounds, size-based prices.
+  for (const it of store.state.items) {
+    if (it.status === 'awaiting_publish' && !it.pricingV2) {
+      store.updateItem(it, { status: 'approved_design', printifyAll: [], printify: null, pricingV2: true });
+      store.log('Gjergj', `rebuilding ${label(it)} with the cheaper print provider and size-based prices. The old drafts stay unpublished in Printify; you can ignore or delete them.`);
+    }
+  }
   // Clear review notes written when the eagle wrongly judged white artwork on a white background (fixed 3 Nov).
   for (const it of store.state.items) {
     if (it.status === 'queued' && /white background|white-on-white|near-white/i.test(it.feedback || '')) {

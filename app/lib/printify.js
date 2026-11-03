@@ -9,8 +9,10 @@ const mock = require('./mock');
 
 const BASE = 'https://api.printify.com/v1';
 const CACHE = path.join(config.DATA, 'printify-catalog.json');
+const CACHE_VERSION = 2; // bump when provider choices change
 let cache = {};
 try { cache = JSON.parse(fs.readFileSync(CACHE, 'utf8')); } catch (e) { /* none yet */ }
+if (cache.version !== CACHE_VERSION) cache = { version: CACHE_VERSION };
 const saveCache = () => fs.writeFileSync(CACHE, JSON.stringify(cache, null, 2));
 
 function api(method, p, body) {
@@ -41,11 +43,13 @@ async function ensureShop() {
 
 const PRODUCTS = {
   sweatshirt: {
+    preferProvider: /shirt monkey/i,   // cheapest UK provider for the Gildan 18000 (chosen 3 Nov)
     match: b => (/gildan/i.test(b.brand || '') && /18000/.test(b.model || '')) ? 3 : (/crewneck sweatshirt/i.test(b.title) ? 1 : 0),
     sizes: ['S', 'M', 'L', 'XL', '2XL', '3XL'],
     placements: [{ position: 'front', use: 'design', x: 0.5, y: 0.42, scale: 0.72, angle: 0 }]
   },
   hoodie: {
+    preferProvider: /print clever/i,   // cheapest UK provider for the Gildan 18500
     match: b => (/gildan/i.test(b.brand || '') && /18500/.test(b.model || '')) ? 3 : (/pullover hood/i.test(b.title) || /hooded sweatshirt/i.test(b.title) ? 1 : 0),
     sizes: ['S', 'M', 'L', 'XL', '2XL', '3XL'],
     // Big statement artwork on the back, small emblem on the left chest.
@@ -78,6 +82,7 @@ async function catalogFor(kind) {
     try { const d = await api('GET', `/catalog/print_providers/${p.id}.json`); country = d.location?.country || ''; } catch (e) { /* skip */ }
     scored.push({ p, country, s: country === 'GB' ? 3 : EU.includes(country) ? 2 : country === 'US' ? 1 : 0 });
   }
+  for (const x of scored) if (spec.preferProvider && spec.preferProvider.test(x.p.title)) x.s += 10;
   scored.sort((a, z) => z.s - a.s);
   const pick = scored[0];
   const v = await api('GET', `/catalog/blueprints/${bp.b.id}/print_providers/${pick.p.id}/variants.json`);
@@ -152,9 +157,20 @@ async function createProduct({ kind, title, description, tags, imageFile, emblem
     try { await api('PUT', `/shops/${shopId}/products/${product.id}.json`, { tags }); }
     catch (e) { store.log('Gjergj', `couldn't set tags through Printify, so you'll add them on Etsy: ${e.message.slice(0, 80)}`); }
   }
-  const full = await api('GET', `/shops/${shopId}/products/${product.id}.json`);
-  const costs = (full.variants || []).filter(v => v.is_enabled).map(v => v.cost).filter(Boolean);
-  const minCost = costs.length ? Math.max(...costs) : null;
+  let full = await api('GET', `/shops/${shopId}/products/${product.id}.json`);
+  // Printify reports production costs in the account currency (USD); convert to pounds.
+  const toGbp = c => cfg.costCurrency === 'GBP' ? c : Math.round(c * cfg.usdToGbp);
+  const enabled = (full.variants || []).filter(v => v.is_enabled && v.cost);
+  const baseCost = enabled.length ? Math.min(...enabled.map(v => toGbp(v.cost))) : null;
+  // Bigger sizes cost more to make: add the difference, rounded up to whole pounds, so profit is the same on every size.
+  if (baseCost !== null) {
+    const priced = enabled.map(v => ({ id: v.id, price: price + Math.ceil(Math.max(0, toGbp(v.cost) - baseCost) / 100) * 100, is_enabled: true }));
+    if (priced.some(v => v.price !== price)) {
+      try { await api('PUT', `/shops/${shopId}/products/${product.id}.json`, { variants: priced }); full = await api('GET', `/shops/${shopId}/products/${product.id}.json`); }
+      catch (e) { store.log('Gjergj', `couldn't set size-based prices: ${e.message.slice(0, 80)}`); }
+    }
+  }
+  const minCost = baseCost;
   const mockups = (full.images || []).filter(i => i.is_default || i.position === 'front').map(i => i.src).slice(0, 3);
   return { id: product.id, shopId, price, cost: minCost, mockups: mockups.length ? mockups : (full.images || []).slice(0, 2).map(i => i.src), variantCount: variants.length, provider: cat.providerTitle };
 }
