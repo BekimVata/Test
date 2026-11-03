@@ -245,7 +245,7 @@ async function productStep(it) {
   const lines = made.map(m => `• ${productName(m.kind)}: from ${gbp(m.price)}${m.cost ? ` (making it costs about ${gbp(m.cost)}; bigger sizes priced up to match)` : ''}`).join('\n');
   await telegram.askApproval({
     itemId: it.id, stage: 'publish', url: made[0].mockups[0], file: made[0].mockups[0] ? null : it.design,
-    caption: `🛍️ Ready for Etsy: ${d.name}\n${lines}\n\nPublish ${made.length > 1 ? 'all ' + made.length : 'it'} to ${cfg.shopName}? Remember: Etsy needs a real photo of each item. Add yours once your samples arrive.`
+    caption: `🛍️ Ready for Etsy: ${d.name}\n${lines}\n\nPublish ${made.length > 1 ? 'all ' + made.length : 'it'} to ${cfg.shopName}? Printify's product photos are allowed on Etsy; your own photos from a sample can be added later.`
   });
 }
 
