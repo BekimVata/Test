@@ -7,28 +7,59 @@
 <style>
 :root{--bg:#15110f;--panel:#211a17;--line:#3d302a;--ink:#efe6d8;--muted:#a8998a;--red:#d21f2e;--gold:#e0b341;color-scheme:dark}
 *{box-sizing:border-box}
-html,body{height:100%;margin:0;background:var(--bg);color:var(--ink);font:15px/1.5 system-ui,-apple-system,"Segoe UI",sans-serif}
-body{display:grid;place-items:center;padding:16px}
-form{width:min(360px,100%);background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:22px;display:flex;flex-direction:column;gap:12px}
+html,body{min-height:100%;margin:0;background:var(--bg);color:var(--ink);font:15px/1.5 system-ui,-apple-system,"Segoe UI",sans-serif}
+body{display:grid;place-items:center;padding:24px 16px}
+.stack{width:min(380px,100%);display:flex;flex-direction:column;gap:14px}
+form{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:22px;display:flex;flex-direction:column;gap:12px}
 h1{margin:0;font:700 24px "Courier New",monospace}
 h1 span{color:var(--red)}
+h2{margin:0;font-size:16px}
 p{margin:0;color:var(--muted);font-size:14px}
 label{font-size:13px;color:var(--muted)}
 input{width:100%;font:16px system-ui;padding:11px 12px;border-radius:8px;border:1px solid var(--line);background:#15110f;color:var(--ink)}
-input:focus-visible,button:focus-visible{outline:2px solid var(--gold);outline-offset:2px}
+input:focus-visible,button:focus-visible,summary:focus-visible{outline:2px solid var(--gold);outline-offset:2px}
 button{font:600 15px system-ui;padding:11px;border-radius:8px;border:0;background:var(--red);color:#fff;cursor:pointer}
+button.alt{background:#2a211d;border:1px solid var(--line);color:var(--ink)}
 .err{color:#ff9a9a;font-size:13.5px}
+details{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:14px 18px}
+details form{background:none;border:0;padding:12px 0 4px}
+summary{cursor:pointer;color:var(--gold);font-size:14px}
 </style>
 </head>
 <body>
-<form method="post" action="/login">
-  <h1>Zyra e <span>Shqiponjës</span></h1>
-  <p>The Banians office. Enter the password you chose when you created the server.</p>
-  <p class="err" id="err" hidden>That password didn't match. Try again.</p>
-  <label for="pw">Office password</label>
-  <input id="pw" name="password" type="password" autocomplete="current-password" required autofocus>
-  <button type="submit">Open the office</button>
-</form>
-<script>if (location.search.includes('wrong')) document.getElementById('err').hidden = false;</script>
+<div class="stack">
+  <form method="post" action="/login">
+    <h1>Zyra e <span>Shqiponjës</span></h1>
+    <p>The Banians office. Enter the password you chose when you created the server.</p>
+    <p class="err" id="err" hidden>That password didn't match. Passwords are case-sensitive. Try again, or reset it below.</p>
+    <label for="pw">Office password</label>
+    <input id="pw" name="password" type="password" autocomplete="current-password" required autofocus>
+    <button type="submit">Open the office</button>
+  </form>
+
+  <details id="resetBox">
+    <summary>Forgot the password, or it never worked?</summary>
+    <form method="post" action="/reset">
+      <p>Use your server number from Hetzner: open your server there and look under the plan name (for example CPX12) for a number like <b>#123456789</b>.</p>
+      <p class="err" id="rerr" hidden></p>
+      <label for="server">Hetzner server number</label>
+      <input id="server" name="server" inputmode="numeric" autocomplete="off" placeholder="123456789" required>
+      <label for="newPassword">New office password (at least 8 characters)</label>
+      <input id="newPassword" name="newPassword" type="password" autocomplete="new-password" minlength="8" required>
+      <button type="submit" class="alt">Set password and open the office</button>
+    </form>
+  </details>
+</div>
+<script>
+const q = location.search;
+if (q.includes('wrong')) document.getElementById('err').hidden = false;
+const rerr = document.getElementById('rerr');
+if (q.includes('badserver')) { rerr.textContent = "That server number didn't match. Copy it from the Hetzner server page, without the # sign."; rerr.hidden = false; document.getElementById('resetBox').open = true; }
+if (q.includes('short')) { rerr.textContent = 'The new password must be at least 8 characters.'; rerr.hidden = false; document.getElementById('resetBox').open = true; }
+fetch('/login-info').then(r => r.json()).then(i => {
+  if (!i.canReset) document.getElementById('resetBox').hidden = true;
+  if (!i.passwordSet) document.getElementById('resetBox').open = true;
+}).catch(() => {});
+</script>
 </body>
 </html>

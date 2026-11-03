@@ -40,6 +40,25 @@ function authed(req) {
 }
 const attempts = new Map(); // simple login rate limit per IP
 
+// The Hetzner server number (shown in the Hetzner console as #123456789) lets the owner reset the password.
+async function serverNumber() {
+  const c = config.load();
+  if (process.env.HETZNER_ID) return process.env.HETZNER_ID;
+  if (c.hetznerId) return c.hetznerId;
+  try {
+    const r = await fetch('http://169.254.169.254/hetzner/v1/metadata/instance-id', { signal: AbortSignal.timeout(3000) });
+    if (r.ok) { const id = (await r.text()).trim(); if (/^\d+$/.test(id)) { config.update({ hetznerId: id }); return id; } }
+  } catch (e) { /* not on Hetzner */ }
+  return '';
+}
+function limited(req) {
+  const ip = req.headers['x-forwarded-for'] || req.socket.remoteAddress;
+  const a = attempts.get(ip) || { n: 0, t: Date.now() };
+  if (Date.now() - a.t > 15 * 60000) { a.n = 0; a.t = Date.now(); }
+  attempts.set(ip, a);
+  return a;
+}
+
 // ---------- helpers ----------
 const TYPES = { '.html': 'text/html; charset=utf-8', '.png': 'image/png', '.js': 'text/javascript', '.css': 'text/css', '.json': 'application/json' };
 function send(res, code, body, type = 'application/json', headers = {}) {
@@ -108,17 +127,30 @@ const server = http.createServer(async (req, res) => {
     if (p === '/health') return send(res, 200, { ok: true });
     if (p === '/login' && req.method === 'GET') return file(res, path.join(PUB, 'login.html'));
     if (p === '/login' && req.method === 'POST') {
-      const ip = req.headers['x-forwarded-for'] || req.socket.remoteAddress;
-      const a = attempts.get(ip) || { n: 0, t: Date.now() };
-      if (Date.now() - a.t > 15 * 60000) { a.n = 0; a.t = Date.now(); }
+      const a = limited(req);
       if (a.n >= 8) return send(res, 429, 'Too many tries. Wait 15 minutes.', 'text/plain');
       const body = await readBody(req);
       if (config.verifyPassword(body.password)) {
-        attempts.delete(ip);
+        a.n = 0;
         return send(res, 303, '', 'text/plain', { Location: '/', 'Set-Cookie': makeCookie() });
       }
-      a.n++; attempts.set(ip, a);
+      a.n++;
       return send(res, 303, '', 'text/plain', { Location: '/login?wrong=1' });
+    }
+    if (p === '/login-info') return send(res, 200, { passwordSet: !!config.load().passwordHash, canReset: !!(await serverNumber()) });
+    if (p === '/reset' && req.method === 'POST') {
+      const a = limited(req);
+      if (a.n >= 8) return send(res, 429, 'Too many tries. Wait 15 minutes.', 'text/plain');
+      const body = await readBody(req);
+      const want = await serverNumber();
+      const given = String(body.server || '').replace(/\D/g, '');
+      if (!want || given !== want) { a.n++; return send(res, 303, '', 'text/plain', { Location: '/login?badserver=1' }); }
+      const pw = String(body.newPassword || '');
+      if (pw.length < 8) return send(res, 303, '', 'text/plain', { Location: '/login?short=1' });
+      config.update({ passwordHash: config.hashPassword(pw) });
+      a.n = 0;
+      store.log('Shqiponja', 'office password was reset with the server number.');
+      return send(res, 303, '', 'text/plain', { Location: '/', 'Set-Cookie': makeCookie() });
     }
     if (!authed(req)) {
       if (p.startsWith('/api/')) return send(res, 401, { error: 'Log in first' });

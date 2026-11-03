@@ -71,6 +71,42 @@ systemctl daemon-reload
 systemctl enable --now banians
 systemctl restart banians
 
+echo "==> Turning on automatic updates (checks every 15 minutes)"
+cat > /usr/local/bin/banians-update <<'UPD'
+#!/usr/bin/env bash
+set -e
+cd /opt/banians
+OLD=$(git rev-parse HEAD)
+git fetch -q --depth 1 origin banians-office
+NEW=$(git rev-parse FETCH_HEAD)
+if [ "$OLD" != "$NEW" ]; then
+  git reset -q --hard FETCH_HEAD
+  chown -R banians:banians /opt/banians
+  systemctl restart banians
+  echo "updated $OLD -> $NEW"
+fi
+UPD
+chmod +x /usr/local/bin/banians-update
+git config --global --add safe.directory /opt/banians || true
+cat > /etc/systemd/system/banians-update.service <<'UNIT'
+[Unit]
+Description=Update the Banians office from GitHub
+[Service]
+Type=oneshot
+ExecStart=/usr/local/bin/banians-update
+UNIT
+cat > /etc/systemd/system/banians-update.timer <<'UNIT'
+[Unit]
+Description=Check for Banians office updates
+[Timer]
+OnBootSec=2min
+OnUnitActiveSec=15min
+[Install]
+WantedBy=timers.target
+UNIT
+systemctl daemon-reload
+systemctl enable --now banians-update.timer
+
 echo "==> Setting up HTTPS"
 IP="$(curl -fsS --max-time 5 http://169.254.169.254/hetzner/v1/metadata/public-ipv4 || hostname -I | awk '{print $1}')"
 HOST="$(echo "$IP" | tr '.' '-').sslip.io"
