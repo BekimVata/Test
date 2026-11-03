@@ -185,6 +185,14 @@ async function publish(shopId, productId) {
   });
 }
 
+// Renames a product; if it's already on Etsy, pushes only the new title (nothing else is touched).
+async function setTitle(shopId, productId, title, live) {
+  await api('PUT', `/shops/${shopId}/products/${productId}.json`, { title });
+  if (live) await api('POST', `/shops/${shopId}/products/${productId}/publish.json`, {
+    title: true, description: false, images: false, variants: false, tags: false, keyFeatures: false, shipping_template: false
+  });
+}
+
 async function test() {
   const all = await shops();
   if (!all.length) return 'Connected, but no shop yet. Connect Etsy inside Printify.';
@@ -195,4 +203,4 @@ async function test() {
 
 async function colours(kind) { const cat = await catalogFor(kind); return { provider: cat.providerTitle, colours: [...new Set(cat.variants.map(v => v.color))] }; }
 
-module.exports = { colours, createProduct, publish, test, ensureShop, catalogFor, isNotConnected: e => /8254|not connected to sales channel/i.test(String(e && e.message || e)) };
+module.exports = { setTitle, colours, createProduct, publish, test, ensureShop, catalogFor, isNotConnected: e => /8254|not connected to sales channel/i.test(String(e && e.message || e)) };

@@ -11,7 +11,7 @@ const claude = require('./anthropic');
 const ideogram = require('./ideogram');
 const printify = require('./printify');
 const telegram = require('./telegram');
-const { BRAND, COLLECTION, DIRECTIONS, COLOURWAYS, colourway, EMBLEM_PROMPT, designPrompt } = require('./briefs');
+const { BRAND, COLLECTION, DIRECTIONS, COLOURWAYS, colourway, EMBLEM_PROMPT, designPrompt, shortTitle } = require('./briefs');
 const preview = require('./preview');
 
 const ACTIONABLE = ['queued', 'approved_design', 'approved_publish'];
@@ -187,12 +187,12 @@ async function writeListing(it, kind) {
   const L = await claude.askJSON({
     model: 'fast', agent: 'Teuta', what: 'listing copy', mockKind: 'listing', maxTokens: 900,
     content: `Write an Etsy listing for ${cfg.shopName}. ${BRAND} This item is from the ${COLLECTION.name} collection. Product: ${pc.what}, in ${c.garment} with the "${d.name}" Christmas tree design (${d.look}) printed in ${c.palette.replace(/\s*\(#[0-9A-Fa-f]{6}\)/g, '')}, slogan "${d.text}". Buyer: ${it.research?.audience || 'gift buyers'}. Angle: ${it.research?.angle || ''}. Keywords: ${(it.research?.keywords || []).join(', ')}.
-Rules: British spelling. Title under 140 characters, starting with "${pc.start}", with the colour word "${c.titleColour}" within the first 40 characters, then the strongest search phrases. Include the colour in at least two tags. Say honestly in the description that it is ${pc.honest}. No ALL CAPS, no emoji, no brand names, and never say it is for men, women or any one group. Description: 3 short paragraphs, warm and stylish, no claims about materials, sizing or care (product details are added separately). Exactly 13 tags, each under 20 characters, lowercase, no punctuation except spaces.
+Rules: British spelling. The title is fixed: "${shortTitle(it.direction, kind, it.colourway)}" (return it unchanged). Put the other search phrases in the tags instead, and include the colour "${c.titleColour.toLowerCase()}" in at least two tags. Say honestly in the description that it is ${pc.honest}. No ALL CAPS, no emoji, no brand names, and never say it is for men, women or any one group. Description: 3 short paragraphs, warm and stylish, no claims about materials, sizing or care (product details are added separately). Exactly 13 tags, each under 20 characters, lowercase, no punctuation except spaces.
 Return JSON only: {"title": "...", "description": "...", "tags": ["..."]}`
   });
   const tags = [...new Set((L.tags || []).map(t => String(t).toLowerCase().replace(/[^a-z0-9 '-]/g, '').trim().slice(0, 20)).filter(Boolean))].slice(0, 13);
   const disclosure = `\n\nAbout this design: created by ${cfg.shopName} using AI image tools from our own original concept, then reviewed and approved by hand. Made to order and shipped by our print partner.`;
-  return { title: String(L.title || '').slice(0, 140), description: String(L.description || '') + disclosure, tags };
+  return { title: shortTitle(it.direction, kind, it.colourway), description: String(L.description || '') + disclosure, tags };
 }
 
 async function ensureEmblem(key = 'navy') {
@@ -317,6 +317,23 @@ Return JSON only: {"shopTitle": "under 55 characters", "announcement": "2-3 sent
   await telegram.sendText(`📝 Shop texts for ${cfg.shopName}\n\nTitle: ${t.shopTitle}\n\nAnnouncement: ${t.announcement}\n\nAbout:\n${t.about}\n\nFAQ:\n${(t.faq || []).join('\n')}`);
 }
 
+async function retitleAll() {
+  let n = 0;
+  for (const it of store.state.items) {
+    const all = it.printifyAll || [];
+    for (const m of all) {
+      const title = shortTitle(it.direction, m.kind, it.colourway);
+      if (!m.id || (m.listing && m.listing.title === title)) continue;
+      await printify.setTitle(m.shopId, m.id, title, !!m.published);
+      if (m.listing) m.listing.title = title;
+      n++;
+    }
+    if (all.length) store.updateItem(it, { printifyAll: all, listing: all[0].listing, printify: all[0] });
+  }
+  store.state.shortTitlesV1 = true; store.save();
+  if (n) store.log('Teuta', `shortened ${n} listing titles, e.g. "${shortTitle('signal', 'sweatshirt', 'navy')}". Live ones update on Etsy within a few minutes.`);
+}
+
 function start() {
   telegram.setDecisionHandler(decide);
   // Rebuild products made before the provider and pricing changes (3 Nov): new provider, pounds, size-based prices.
@@ -346,6 +363,8 @@ function start() {
       store.updateItem(it, { status: 'approved_publish', errors: 0, retryAt: null, error: null });
     }
   }
+  // Shorten the titles of products already made (agreed 3 Nov). Live listings update on Etsy too.
+  if (!store.state.shortTitlesV1) retitleAll().catch(e => store.log('Shqiponja', `could not shorten every title yet: ${e.message.slice(0, 160)}`));
   // Queue the four new colourways of the three live designs once (asked for on 3 Nov).
   if (!store.state.colourwaysQueued) {
     store.state.colourwaysQueued = true; store.save();
