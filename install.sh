@@ -105,7 +105,8 @@ cat > /etc/systemd/system/banians-update.timer <<'UNIT'
 Description=Check for Banians office updates
 [Timer]
 OnBootSec=2min
-OnUnitActiveSec=15min
+OnCalendar=*:0/15
+Persistent=true
 [Install]
 WantedBy=timers.target
 UNIT
