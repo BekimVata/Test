@@ -160,7 +160,7 @@ async function inspect(it, img) {
     system: 'You are the strict but fair art director of a print-on-demand shop. You only pass designs that are ready to print and sell.',
     content: [
       { type: 'image', source },
-      { type: 'text', text: `Inspect this ${it.product} design. Brief: "${d.name}", palette ${d.palette}, look: ${d.look}. Text rule: ${d.textRule || 'The only text must read exactly: "' + d.text + '".'}
+      { type: 'text', text: `Inspect this design for a ${productsOf(it).map(productName).join(' and ')}. IMPORTANT: the artwork has a transparent background and will be printed on a ${COLLECTION.garment || 'dark navy'} garment. White, silver and pale elements are intentional: judge contrast as if the background were ${COLLECTION.garment || 'dark navy'}, never white. Brief: "${d.name}", palette ${d.palette}, look: ${d.look}. Text rule: ${d.textRule || 'The only text must read exactly: "' + d.text + '".'}
 Check: 1) the text rule above is met and every word is spelled right; 2) colours match the palette; 3) artwork is isolated, no shirt, mockup, frame or background scene; 4) no brand logos, trademarks or known characters; 5) printable: no hairlines too thin to print, nothing tiny or cut off; 6) does it look stylish and sellable.
 Return JSON only: {"ok": true or false, "score": 1-10, "problems": ["short problems, empty if none"], "fix": "one sentence telling the designer exactly what to change"}. ok must be false if the text rule fails or score is below 7.` }
     ]
