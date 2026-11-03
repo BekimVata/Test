@@ -346,6 +346,12 @@ function start() {
       store.updateItem(it, { status: 'approved_publish', errors: 0, retryAt: null, error: null });
     }
   }
+  // Queue the four new colourways of the three live designs once (asked for on 3 Nov).
+  if (!store.state.colourwaysQueued) {
+    store.state.colourwaysQueued = true; store.save();
+    const n = enqueueBatch(['signal', 'starmap', 'transmission'], ['sweatshirt', 'hoodie'], ['pine', 'aurora', 'moonlight', 'redplanet']);
+    if (n) telegram.sendText(`🦅 New colourways ordered: ${n} designs (The Signal, Star Map 2026 and Transmission in Pine & Starlight, Aurora, Moonlight and Red Planet). They'll come to you here for approval one by one.`);
+  }
   // Items that were mid-step when the server stopped simply carry on.
   setInterval(() => tick().catch(e => console.error('tick', e)), 3000);
 }
