@@ -5,6 +5,8 @@ const store = require('./store');
 const mock = require('./mock');
 
 async function ask({ model = 'fast', system, content, maxTokens = 1200, agent = 'Office', what = 'thinking', mockKind }) {
+  // Newer models can spend part of the budget before writing, so never go below 8000 (you pay only for what's used).
+  maxTokens = Math.max(maxTokens, 8000);
   const cfg = config.load();
   const modelId = cfg.models[model] || model;
   if (mock.on) return mock.claude({ mockKind, content });
@@ -17,6 +19,9 @@ async function ask({ model = 'fast', system, content, maxTokens = 1200, agent = 
     body: JSON.stringify(body)
   });
   const text = (res.content || []).filter(c => c.type === 'text').map(c => c.text).join('\n');
+  if (!text.trim() || res.stop_reason === 'max_tokens') {
+    console.error('Claude reply problem', modelId, res.stop_reason, JSON.stringify(res.usage), (res.content || []).map(c => c.type).join(','));
+  }
   const p = cfg.modelPricesUSD[modelId] || { in: 3, out: 15 };
   const usd = ((res.usage?.input_tokens || 0) * p.in + (res.usage?.output_tokens || 0) * p.out) / 1e6;
   store.spend(usd * cfg.usdToGbp, `${what} (${modelId})`, agent);

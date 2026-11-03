@@ -290,6 +290,13 @@ Return JSON only: {"shopTitle": "under 55 characters", "announcement": "2-3 sent
 
 function start() {
   telegram.setDecisionHandler(decide);
+  // Retry items that failed because Claude's replies were cut short (fixed 3 Nov).
+  for (const it of store.state.items) {
+    if (it.status === 'failed' && /did not return JSON/.test(it.error || '')) {
+      store.updateItem(it, { status: it.printifyAll && it.printifyAll.length ? 'approved_design' : 'queued', errors: 0, retryAt: null, error: null });
+      store.log('Shqiponja', `retrying ${label(it)} now that the reply-length problem is fixed.`);
+    }
+  }
   // Items that were mid-step when the server stopped simply carry on.
   setInterval(() => tick().catch(e => console.error('tick', e)), 3000);
 }
