@@ -21,6 +21,8 @@ const mock = require('./lib/mock');
 const { DIRECTIONS } = require('./lib/briefs');
 
 const PORT = Number(process.env.PORT || 3000);
+let VERSION = 'unknown';
+try { VERSION = require('child_process').execSync('git -c safe.directory=* log -1 --format=%h', { cwd: path.join(__dirname, '..') }).toString().trim(); } catch (e) { /* not a git checkout */ }
 const PUB = path.join(__dirname, 'public');
 const cfg0 = config.load();
 if (mock.on && !cfg0.passwordHash) config.update({ passwordHash: config.hashPassword('practice123') });
@@ -124,7 +126,7 @@ const server = http.createServer(async (req, res) => {
   const url = new URL(req.url, 'http://x');
   const p = url.pathname;
   try {
-    if (p === '/health') return send(res, 200, { ok: true });
+    if (p === '/health') return send(res, 200, { ok: true, version: VERSION });
     // Private share links for finished images (logo, banner, designs) so other sites, like Etsy, can fetch them.
     const sm = /^\/share\/([a-f0-9]{32})\/([\w.-]+\.png)$/.exec(p);
     if (sm) {
