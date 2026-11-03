@@ -31,7 +31,11 @@ fi
 echo "==> Getting the office code"
 id banians >/dev/null 2>&1 || useradd --system --home "$DIR" --shell /usr/sbin/nologin banians
 if [ -d "$DIR/.git" ]; then
-  git -C "$DIR" fetch --depth 1 origin "$BRANCH" && git -C "$DIR" reset --hard "origin/$BRANCH"
+  # Run git as the files' owner (git refuses repositories owned by another user), and fail loudly.
+  chown -R banians:banians "$DIR"
+  sudo -u banians git -c safe.directory="$DIR" -C "$DIR" fetch --depth 1 origin "$BRANCH"
+  sudo -u banians git -c safe.directory="$DIR" -C "$DIR" reset --hard FETCH_HEAD
+  echo "Code now at: $(sudo -u banians git -c safe.directory="$DIR" -C "$DIR" log -1 --format='%h %s')"
 else
   rm -rf "$DIR.new" && git clone --depth 1 -b "$BRANCH" "$REPO" "$DIR.new"
   mkdir -p "$DIR" && cp -a "$DIR.new/." "$DIR/" && rm -rf "$DIR.new"
@@ -75,19 +79,20 @@ echo "==> Turning on automatic updates (checks every 15 minutes)"
 cat > /usr/local/bin/banians-update <<'UPD'
 #!/usr/bin/env bash
 set -e
-cd /opt/banians
-OLD=$(git rev-parse HEAD)
-git fetch -q --depth 1 origin banians-office
-NEW=$(git rev-parse FETCH_HEAD)
+G="sudo -u banians git -c safe.directory=/opt/banians -C /opt/banians"
+chown -R banians:banians /opt/banians
+OLD=$($G rev-parse HEAD)
+$G fetch -q --depth 1 origin banians-office
+NEW=$($G rev-parse FETCH_HEAD)
 if [ "$OLD" != "$NEW" ]; then
-  git reset -q --hard FETCH_HEAD
-  chown -R banians:banians /opt/banians
+  $G reset -q --hard FETCH_HEAD
   systemctl restart banians
   echo "updated $OLD -> $NEW"
+else
+  echo "already up to date ($OLD)"
 fi
 UPD
 chmod +x /usr/local/bin/banians-update
-git config --global --add safe.directory /opt/banians || true
 cat > /etc/systemd/system/banians-update.service <<'UNIT'
 [Unit]
 Description=Update the Banians office from GitHub
@@ -106,6 +111,7 @@ WantedBy=timers.target
 UNIT
 systemctl daemon-reload
 systemctl enable --now banians-update.timer
+systemctl restart banians-update.timer
 
 echo "==> Setting up HTTPS"
 IP="$(curl -fsS --max-time 5 http://169.254.169.254/hetzner/v1/metadata/public-ipv4 || hostname -I | awk '{print $1}')"
