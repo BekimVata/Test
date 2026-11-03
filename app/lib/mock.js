@@ -76,12 +76,13 @@ async function printify(method, p, body) {
   if (p === '/shops.json') return [{ id: 101, title: 'Banians', sales_channel: 'etsy' }];
   if (p === '/catalog/blueprints.json') return [
     { id: 49, title: 'Unisex Heavy Blend™ Crewneck Sweatshirt', brand: 'Gildan', model: '18000', description: '<p>A sturdy and warm sweatshirt.</p><ul><li>50% cotton, 50% polyester</li><li>Medium-heavy fabric</li></ul>' },
+    { id: 77, title: 'Unisex Heavy Blend™ Hooded Sweatshirt', brand: 'Gildan', model: '18500', description: '<p>Warm pullover hoodie.</p>' },
     { id: 68, title: 'Ceramic Mug 11oz', brand: 'Generic', model: 'Mug', description: '<p>White ceramic mug, 11oz.</p>' }
   ];
   if (/print_providers\.json$/.test(p)) return [{ id: 6, title: 'T Shirt and Sons' }, { id: 29, title: 'Monster Digital' }];
   if (/^\/catalog\/print_providers\/(\d+)\.json$/.test(p)) return { location: { country: p.includes('/6.') ? 'GB' : 'US' } };
   if (/variants\.json$/.test(p)) {
-    if (p.includes('/49/')) {
+    if (p.includes('/49/') || p.includes('/77/')) {
       const colors = ['Black', 'Forest Green', 'Maroon', 'Sand', 'Charcoal'];
       const sizes = ['S', 'M', 'L', 'XL', '2XL', '3XL', '4XL'];
       const variants = []; let id = 1000;

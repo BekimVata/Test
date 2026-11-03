@@ -71,8 +71,8 @@ button.primary{background:var(--red);border-color:var(--red);color:#fff}
     <h2>5 · Money</h2>
     <div class="row">
       <div><label for="dailyCapGBP">Daily AI cap (£)</label><input id="dailyCapGBP" type="number" min="0.5" max="50" step="0.5"></div>
-      <div><label for="priceSweatshirt">Sweatshirt price (£)</label><input id="priceSweatshirt" type="number" min="5" step="0.01"></div>
-      <div><label for="priceMug">Mug price (£)</label><input id="priceMug" type="number" min="3" step="0.01"></div>
+      <div><label for="priceSweatshirt">Christmas jumper price (£)</label><input id="priceSweatshirt" type="number" min="5" step="0.01"></div>
+      <div><label for="priceHoodie">Hoodie price (£)</label><input id="priceHoodie" type="number" min="5" step="0.01"></div>
     </div>
     <span class="saved">The eagle stops all paid work for the day when the cap is reached. Prices are in your Etsy shop currency.</span>
   </section>
@@ -100,7 +100,7 @@ function show(c) {
   $('paired').textContent = c.telegramPaired ? 'Paired ✓' : 'Not paired yet';
   $('dailyCapGBP').value = c.dailyCapGBP;
   $('priceSweatshirt').value = (c.prices.sweatshirt / 100).toFixed(2);
-  $('priceMug').value = (c.prices.mug / 100).toFixed(2);
+  $('priceHoodie').value = ((c.prices.hoodie || 4499) / 100).toFixed(2);
 }
 async function runTests() {
   $('msg').textContent = 'Testing connections…';
@@ -114,7 +114,7 @@ async function runTests() {
 $('save').onclick = async () => {
   const body = {};
   for (const k of ['anthropicKey', 'ideogramKey', 'printifyToken', 'telegramToken', 'newPassword']) if ($(k).value.trim()) body[k] = $(k).value.trim();
-  body.dailyCapGBP = $('dailyCapGBP').value; body.priceSweatshirt = $('priceSweatshirt').value; body.priceMug = $('priceMug').value;
+  body.dailyCapGBP = $('dailyCapGBP').value; body.priceSweatshirt = $('priceSweatshirt').value; body.priceHoodie = $('priceHoodie').value;
   const r = await api('/api/settings', body);
   if (r.error) { $('msg').textContent = r.error; return; }
   for (const k of ['anthropicKey', 'ideogramKey', 'printifyToken', 'telegramToken', 'newPassword']) $(k).value = '';

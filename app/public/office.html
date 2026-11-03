@@ -771,7 +771,7 @@ function addLog(line, prepend = true) {
 }
 
 // ----- panels -----
-function itemTitle(i) { return i.kind === "kit" ? "Shop kit" : `${i.directionName || i.direction} · ${i.product === "sweatshirt" ? "Christmas jumper" : i.product}`; }
+function itemTitle(i) { const n = p => p === "sweatshirt" ? "jumper" : p; return i.kind === "kit" ? "Shop kit" : `${i.directionName || i.direction} · ${(i.products || [i.product]).map(n).join(" + ")}`; }
 function renderApprovals() {
   const waiting = LIVE.items.filter(i => i.status === "awaiting_design" || i.status === "awaiting_publish");
   st.approvals = waiting; st.pile = waiting.length;
@@ -785,7 +785,7 @@ function renderApprovals() {
     d.innerHTML = `<img src="${esc(img)}" alt="${esc(itemTitle(it))}" loading="lazy"><div>
       <div class="t">${pub ? "Publish to Etsy?" : "Approve this design?"}</div>
       <div class="m">${esc(itemTitle(it))}${it.check && it.check.score ? ` · eagle's score ${it.check.score}/10` : ""}</div>
-      ${pub && it.listing ? `<div class="m">${esc(it.listing.title)}</div><div class="m">${money(it.price / 100)}${margin}</div>` : ""}
+      ${pub && it.made && it.made.length ? it.made.map(m => `<div class="m">${m.kind === "hoodie" ? "Hoodie" : m.kind === "sweatshirt" ? "Jumper" : esc(m.kind)}: ${money(m.price / 100)}${m.cost ? ` · about ${money((m.price - m.cost) / 100)} before Etsy fees` : ""}</div>`).join("") : (pub && it.listing ? `<div class="m">${esc(it.listing.title)}</div><div class="m">${money(it.price / 100)}${margin}</div>` : "")}
       ${!pub && it.check && it.check.problems && it.check.problems.length ? `<div class="m warn">Eagle's notes: ${esc(it.check.problems.join("; "))}</div>` : ""}
       <div class="btns"><button class="btn ok">${pub ? "Publish" : "Approve"}</button><button class="btn no">Reject</button></div></div>`;
     d.querySelector(".ok").onclick = () => decide(it, true, d);
@@ -800,7 +800,7 @@ async function decide(it, ok, el) {
 function renderPipe() {
   const el = document.getElementById("pipe"); el.innerHTML = "";
   const items = LIVE.items.slice().reverse();
-  if (!items.length) { el.innerHTML = `<li class="empty">No designs yet. Press <b>Start first batch</b> to make 4 Christmas jumper designs, one per tree style.</li>`; return; }
+  if (!items.length) { el.innerHTML = `<li class="empty">No designs yet. Press <b>Start first batch</b> to make 4 designs, one per tree style. Each becomes a Christmas jumper and a hoodie.</li>`; return; }
   for (const i of items) {
     const [cls, lab] = STATUS[i.status] || ["asleep", i.status];
     const li = document.createElement("li");

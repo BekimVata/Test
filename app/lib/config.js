@@ -12,7 +12,7 @@ const DEFAULTS = {
   dailyCapGBP: 3,
   usdToGbp: 0.79,
   // Prices in pence, in your Printify/Etsy shop currency.
-  prices: { sweatshirt: 3999, mug: 1699 },
+  prices: { sweatshirt: 3999, hoodie: 4499, mug: 1999 },
   ideogramCostUSD: 0.10,            // estimate per image, used for the spend cap
   models: { smart: 'claude-sonnet-5-5', fast: 'claude-haiku-5-5' },
   modelPricesUSD: {                 // per million tokens, conservative estimates

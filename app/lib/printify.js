@@ -45,6 +45,11 @@ const PRODUCTS = {
     sizes: ['S', 'M', 'L', 'XL', '2XL', '3XL'],
     placement: { x: 0.5, y: 0.42, scale: 0.62, angle: 0 }
   },
+  hoodie: {
+    match: b => (/gildan/i.test(b.brand || '') && /18500/.test(b.model || '')) ? 3 : (/pullover hood/i.test(b.title) || /hooded sweatshirt/i.test(b.title) ? 1 : 0),
+    sizes: ['S', 'M', 'L', 'XL', '2XL', '3XL'],
+    placement: { x: 0.5, y: 0.38, scale: 0.55, angle: 0 }
+  },
   mug: {
     match: b => (/mug/i.test(b.title) && /11\s?oz/i.test(b.title) && !/travel|enamel|color|accent|magic|latte/i.test(b.title)) ? 2 : 0,
     sizes: null,

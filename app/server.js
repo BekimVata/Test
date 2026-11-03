@@ -84,7 +84,7 @@ function publicItem(i) {
   return {
     id: i.id, kind: i.kind, direction: i.direction, directionName: DIRECTIONS[i.direction]?.name, product: i.product,
     status: i.status, attempts: i.attempts, design: i.design, files: i.files, check: i.check, listing: i.listing,
-    mockups: i.printify?.mockups, price: i.printify?.price, cost: i.printify?.cost, error: i.error, created: i.created, updated: i.updated, kit: i.kit
+    mockups: i.printify?.mockups, price: i.printify?.price, cost: i.printify?.cost, products: i.products || [i.product], made: (i.printifyAll || []).map(m => ({ kind: m.kind, price: m.price, cost: m.cost, title: m.listing?.title })), error: i.error, created: i.created, updated: i.updated, kit: i.kit
   };
 }
 function snapshot() {
@@ -181,9 +181,10 @@ const server = http.createServer(async (req, res) => {
       for (const [k, f] of Object.entries(keyFields)) if (typeof body[k] === 'string' && body[k].trim()) patch[f] = body[k].trim();
       if (body.telegramToken && body.telegramToken.trim() !== config.load().telegramToken) patch.telegramChatId = '';
       if (body.dailyCapGBP !== undefined) patch.dailyCapGBP = Math.max(0.5, Math.min(50, Number(body.dailyCapGBP) || 3));
-      if (body.priceSweatshirt || body.priceMug) {
+      if (body.priceSweatshirt || body.priceHoodie || body.priceMug) {
         const c = config.load();
-        patch.prices = { sweatshirt: Math.round(Number(body.priceSweatshirt || c.prices.sweatshirt / 100) * 100), mug: Math.round(Number(body.priceMug || c.prices.mug / 100) * 100) };
+        const pick = (v, cur) => Math.round(Number(v || cur / 100) * 100);
+        patch.prices = { ...c.prices, sweatshirt: pick(body.priceSweatshirt, c.prices.sweatshirt), hoodie: pick(body.priceHoodie, c.prices.hoodie), mug: pick(body.priceMug, c.prices.mug) };
       }
       if (body.newPassword) {
         if (String(body.newPassword).length < 8) return send(res, 400, { error: 'Password must be at least 8 characters.' });
@@ -196,7 +197,7 @@ const server = http.createServer(async (req, res) => {
     if (p === '/api/test') return send(res, 200, await testAll());
     if (p === '/api/batch') {
       const dirs = Array.isArray(body.directions) && body.directions.length ? body.directions.filter(d => DIRECTIONS[d]) : undefined;
-      const prods = Array.isArray(body.products) && body.products.length ? body.products.filter(x => ['sweatshirt', 'mug'].includes(x)) : undefined;
+      const prods = Array.isArray(body.products) && body.products.length ? body.products.filter(x => ['sweatshirt', 'hoodie', 'mug'].includes(x)) : undefined;
       return send(res, 200, { ok: true, added: pipeline.enqueueBatch(dirs, prods) });
     }
     if (p === '/api/kit') { pipeline.enqueueKit(); return send(res, 200, { ok: true }); }

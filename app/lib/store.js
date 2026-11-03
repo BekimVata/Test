@@ -80,7 +80,7 @@ function summary() {
     todaySpend: todaySpend(),
     totalSpend: costs,
     totalIncome: income,
-    published: items.filter(i => i.status === 'published').length,
+    published: items.filter(i => i.status === 'published').reduce((n, i) => n + ((i.printifyAll && i.printifyAll.length) || 1), 0),
     waiting: items.filter(i => i.status === 'awaiting_design' || i.status === 'awaiting_publish').length,
     inProgress: items.filter(i => !['published', 'rejected', 'failed', 'awaiting_design', 'awaiting_publish'].includes(i.status)).length
   };
