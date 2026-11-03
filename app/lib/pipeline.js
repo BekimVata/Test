@@ -296,7 +296,7 @@ function start() {
   telegram.setDecisionHandler(decide);
   // Rebuild products made before the provider and pricing changes (3 Nov): new provider, pounds, size-based prices.
   for (const it of store.state.items) {
-    if (it.status === 'awaiting_publish' && !it.pricingV2) {
+    if (['awaiting_publish', 'approved_design'].includes(it.status) && (it.printifyAll || []).length && !it.pricingV2) {
       store.updateItem(it, { status: 'approved_design', printifyAll: [], printify: null, pricingV2: true });
       store.log('Gjergj', `rebuilding ${label(it)} with the cheaper print provider and size-based prices. The old drafts stay unpublished in Printify; you can ignore or delete them.`);
     }
