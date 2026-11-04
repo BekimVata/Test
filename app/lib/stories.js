@@ -133,7 +133,7 @@ async function filmAndEdit(it) {
     for (;;) {
     const cur = shots[sh.id];
     // Try the video models in turn (best first, the last winner first of all); keep the first clip that passes.
-    const order = [store.state.videoModelBest, 'seedance25', 'minimax', 'kling3'].filter((m, i, a) => m && a.indexOf(m) === i);
+    const order = [store.state.videoModelBest, 'seedance25', 'minimax'].filter((m, i, a) => m && a.indexOf(m) === i);
     const tried = cur.modelsTried || [];
     const model = order.find(m => !tried.includes(m));
     if (!model) {
@@ -159,12 +159,12 @@ async function filmAndEdit(it) {
       continue;
     }
     const fin = await video.finish(raw.file, `story-${it.id}-${sh.id}-${model}-fin.mp4`);
-    const stills = await video.frames(fin, 6);
+    const stills = await video.frames(fin, 6, sh.secs);
     store.act('era', 'idle');
     let c = { ok: true, score: null, problems: [] };
     if (stills.length) c = await check([img(marketing.forCheck(cur.still)), img(sh.view === 'back' ? it.back : it.front), ...stills.map(img), { type: 'text', text:
-      `Image 1 is the approved first frame, image 2 the real product. The other ${stills.length} images are frames, in order, from the finished clip (only its first ${sh.secs} seconds will be used). Intended action: ${sh.motion}
-Check every frame: 1) the person's face, proportions, height and build stay consistent and natural (no stretching, shrinking, extra or bent limbs, melting hands); 2) the hoodie and its print stay the same as the first frame and the real product, with no shapes moving or changing; 3) the intended action happens and is physically believable; 4) it looks like real filmed footage. ${VERDICT}` }]);
+      `Image 1 is the approved first frame, image 2 the real product. The other ${stills.length} images are frames, in order, from the ${sh.secs}-second part of the clip that will be used. Intended action: ${sh.motion}
+Judge it as a viewer scrolling TikTok on a phone would see it. Fail it only for problems that are clearly visible at a glance: A) the face or body visibly changes, stretches or warps; B) hands or limbs melt, bend wrongly or multiply; C) the printed artwork on the hoodie visibly morphs, swims or turns into different shapes; D) it obviously looks AI-generated. Minor things are NOT failures: slight softness or motion blur, small background shimmer, fabric folds shifting naturally, the action being subtler than described. Return JSON only: {"ok": true or false, "score": 1-10, "problems": ["short problems, empty if none"], "fix": "one sentence for the next attempt"}. ok must be false only if A, B, C or D fails or the score is below 7.` }]);
     shots[sh.id] = { ...cur, takes: take, modelsTried: tried.concat(model), clip: fin, clipModel: model, clipCheck: c, clipOk: !!c.ok, clipFix: c.fix };
     store.updateItem(it, { shots });
     if (!c.ok) {

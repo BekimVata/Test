@@ -33,9 +33,10 @@ async function finish(src, out) {
 }
 
 // Stills spread through the clip, for the eagle to compare frame by frame.
-async function frames(name, n = 6) {
+async function frames(name, n = 6, upTo) {
   if (mock.on) return [];
-  const { duration } = await probe(name);
+  let { duration } = await probe(name);
+  if (upTo && upTo < duration) duration = upTo; // only the part of the clip that is actually used
   const out = [];
   for (let i = 0; i < n; i++) {
     const t = Math.max(0, Math.min(duration - 0.05, (duration * (i + 0.5)) / n));
