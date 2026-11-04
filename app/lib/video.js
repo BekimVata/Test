@@ -13,7 +13,7 @@ const F = name => path.join(config.DATA, 'files', name);
 let hasFfmpeg = null;
 async function available() {
   if (mock.on) return true;
-  if (hasFfmpeg === null) { try { await run('ffmpeg', ['-version'], 10000); hasFfmpeg = true; } catch (e) { hasFfmpeg = false; } }
+  if (!hasFfmpeg) { try { await run('ffmpeg', ['-version'], 10000); hasFfmpeg = true; } catch (e) { hasFfmpeg = false; } } // re-check until found (installed 4 Nov)
   return hasFfmpeg;
 }
 
