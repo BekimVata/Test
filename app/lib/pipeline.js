@@ -377,6 +377,14 @@ function start() {
       store.log('Shqiponja', `retrying the stills for ${stories.label(it)} with the improved brief and check.`);
     }
   }
+  // Retry the telescope still once more with the telescope aimed at the moon (4 Nov, 20:40).
+  if (!store.state.storyRetryV2) {
+    store.state.storyRetryV2 = true; store.save();
+    for (const it of store.state.items) if (it.kind === 'story' && it.story === 'lookup' && it.status === 'rejected' && it.dropped) {
+      store.updateItem(it, { status: 'queued', dropped: false, shots: {}, errors: 0, retryAt: null, error: null });
+      store.log('Shqiponja', `retrying the telescope still with the telescope aimed at the moon.`);
+    }
+  }
   // The two approved storyboards (4 Nov), both on the navy Star Map hoodie.
   if (!store.state.storyboardsV1) {
     const sm = store.state.items.find(i => i.kind === 'design' && i.direction === 'starmap' && (i.colourway || 'navy') === 'navy' && (i.printifyAll || []).some(m => m.kind === 'hoodie' && m.published));
