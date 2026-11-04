@@ -14,6 +14,7 @@ const ideogram = require('./ideogram');
 const printify = require('./printify');
 const telegram = require('./telegram');
 const preview = require('./preview');
+const video = require('./video');
 const mock = require('./mock');
 const { request } = require('./http');
 const { BRAND, DIRECTIONS, colourway } = require('./briefs');
@@ -198,7 +199,7 @@ Return JSON only:
   const lifestyle = await ideogram.edit({
     images: [it.mockup, front, banner].filter(Boolean),
     size: '1152x2048', quality: 'medium', fileName: `promo-${it.id}-life-${attempt}.png`, agent: 'Lule',
-    prompt: `Image 1 is the exact product: a ${c.garment} ${productWord(it.productKind)} with a printed design. Create a premium, realistic fashion photograph of ${it.model || modelFor(it)} wearing exactly this garment. Keep the garment colour and the printed artwork exactly as in image 1: same shapes, same colours, same lettering, not redrawn, not mirrored, not distorted. ${sideNote} Setting: ${it.copy.scene}${banner ? ` Use image ${front ? 3 : 2} only for mood and colour (midnight-blue cosmic sky meeting dark pine nature); do not copy any text from it.` : ''} Cinematic night light, natural skin and hands, shallow depth of field. No text, no logos, no watermark.${fix}`
+    prompt: `Image 1 is the exact product: a ${c.garment} ${productWord(it.productKind)} with a printed design. Create a premium, realistic fashion photograph of ${it.model || modelFor(it)} wearing exactly this garment. Keep the garment colour and the printed artwork exactly as in image 1: same shapes, same colours, same lettering, not redrawn, not mirrored, not distorted. ${sideNote} Setting: ${it.copy.scene}${banner ? ` Use image ${front ? 3 : 2} only for mood and colour (midnight-blue cosmic sky meeting dark pine nature); do not copy any text from it.` : ''} Shot like a real fashion campaign on a full-frame camera with a 35mm lens at f/2: true-to-life body proportions, natural skin texture and pores, relaxed hands with five fingers, real fabric weight with folds and creases, believable night light. It must look like a real photograph, not AI: no plastic skin, no glowing edges, no perfect symmetry. No text, no logos, no watermark.${fix}`
   });
   store.act('lule', 'work', { label: 'Pinterest advert' });
   const pin = await ideogram.edit({
@@ -218,22 +219,30 @@ Return JSON only:
       model: 'smart', agent: 'Shqiponja', what: 'advert inspection', mockKind: 'check', maxTokens: 700,
       system: 'You are the strict but fair brand director of a clothing shop. Adverts must show the real product honestly and look premium.',
       content: [imgBlock(a), imgBlock(b), imgBlock(p2), ...(fr ? [imgBlock(fr)] : []), { type: 'text', text: `Image 1 is the real product photo${it.productKind === 'hoodie' ? ' of the BACK of the hoodie, where its big artwork is printed' : ''}. Image 2 is a lifestyle photo made for an advert, image 3 is the Pinterest advert made from it.${fr ? ' Image 4 is the real FRONT of the same hoodie (a small chest emblem only).' : ''} The small "BANIANS" wordmark or logo is the shop's own brand and is expected on the advert.
-Check: 1) in images 2 and 3 the garment colour and the printed artwork match image 1 closely (same design, not redrawn into something different, readable where the original has text); a buyer must not feel misled; 2) image 3 headline reads exactly "${it.copy.headline}" and "Free UK delivery", spelled right, and apart from the Banians logo there is no other stray text; 3) no warped faces, hands or extra limbs; 4) no third-party logos or brands; 5) premium, on-brand look (cosmic night sky meets nature, midnight blue).
-Return JSON only: {"ok": true or false, "score": 1-10, "problems": ["short problems, empty if none"], "fix": "one sentence for the designer"}. ok must be false if check 1 or 2 fails or score is below 7.` }]
+Check: 1) in images 2 and 3 the garment colour and the printed artwork match image 1 closely (same design, not redrawn into something different, readable where the original has text); a buyer must not feel misled; 2) image 3 headline reads exactly "${it.copy.headline}" and "Free UK delivery", spelled right, and apart from the Banians logo there is no other stray text; 3) no warped faces, hands or extra limbs; 4) no third-party logos or brands; 5) premium, on-brand look (cosmic night sky meets nature, midnight blue); 6) it looks like a real photograph: natural proportions, skin, hands and fabric, nothing that reads as AI-generated.
+Return JSON only: {"ok": true or false, "score": 1-10, "problems": ["short problems, empty if none"], "fix": "one sentence for the designer"}. ok must be false if check 1, 2 or 6 fails or score is below 8.` }]
     });
   }
   store.act('master', 'inspect', { agent: 'lule', ok: check.ok, reason: check.ok ? '' : (check.problems || [])[0] });
-  if (!check.ok && attempt < 2) {
+  const maxTries = it.idea ? 3 : 2;
+  if (!check.ok && attempt < maxTries) {
     store.updateItem(it, { feedback: check.fix || (check.problems || []).join('; '), check });
     store.log('Shqiponja', `sent ${label(it)} back to Lule: ${(check.problems || [check.fix]).join('; ').slice(0, 160)}`);
     return;
   }
+  // Higher bar, lower volume (Brand Blueprint, 4 Nov): below 8/10 is dropped, never sent to you.
+  if (!check.ok) {
+    store.updateItem(it, { status: 'rejected', check, dropped: true });
+    store.log('Shqiponja', `dropped ${label(it)}: still below my 8/10 bar after ${attempt} tries (${(check.problems || []).join('; ').slice(0, 140)}).`);
+    if (it.idea) telegram.sendText(`🦅 I couldn't get your idea to my quality bar after ${attempt} tries, so I haven't sent it: ${(check.problems || []).slice(0, 2).join('; ')}. Try rewording it with /idea.`);
+    return;
+  }
   store.updateItem(it, { status: 'awaiting_promo', check });
-  store.log('Shqiponja', check.ok ? `passed ${label(it)} (${check.score}/10). Over to you.` : `${label(it)} still has issues after 2 tries. Sending it to you with my notes.`);
+  store.log('Shqiponja', `passed ${label(it)} (${check.score}/10). Over to you.`);
   store.act('lule', 'approval', { icon: 'doc' });
   await telegram.askApproval({
     itemId: it.id, stage: 'promo', file: pin.file,
-    caption: `📣 Advert #${it.id}: ${label(it)}\nHeadline: ${it.copy.headline}\nPinterest: ${it.copy.pinTitle}\nTikTok/Reels: ${it.copy.caption}\nEagle: ${check.score ?? '–'}/10${check.ok ? '' : ' ⚠️ ' + (check.problems || []).join('; ')}\n\nApprove to schedule it on Pinterest${it.idea || videoDue() ? ' and make the video' : ''}.`
+    caption: `📣 Advert #${it.id}: ${label(it)}\nHeadline: ${it.copy.headline}\nPinterest: ${it.copy.pinTitle}\nTikTok/Reels: ${it.copy.caption}\nEagle: ${check.score ?? '–'}/10\n\nApprove to schedule it on Pinterest${it.idea || videoDue() ? ' and make the video' : ''}.`
   });
 }
 
@@ -275,18 +284,61 @@ async function scheduleAdvert(it) {
     store.updateItem(it, { pinned: true });
     store.log('Besnik', `scheduled 2 Pinterest pins for ${label(it)}: ${a.replace('T', ' ').slice(0, 16)} and ${b.replace('T', ' ').slice(0, 16)}.`);
   }
-  if (it.wantVideo && !it.video) {
-    store.act('era', 'work', { label: 'Filming the clip' });
-    const secs = (it.idea && it.idea.duration) || 5;
-    const v = await ideogram.video({ image: it.lifestyle, duration: secs, costUSD: 0.084 * secs, prompt: `${it.copy.motion} Keep the person, the garment and its printed artwork unchanged and steady. Calm, cinematic, premium.`, fileName: `promo-${it.id}-clip.mp4`, agent: 'Era' });
-    store.act('era', 'idle');
-    store.state.videos = (store.state.videos || []).concat(Date.now());
-    store.updateItem(it, { video: v.file });
-    store.log('Era', `filmed a ${(it.idea && it.idea.duration) || 5}-second clip for ${label(it)}. It's on your Telegram, ready to post.`);
-    await telegram.sendVideo(v.file, `🎬 Ready for TikTok and Instagram Reels:\n\n${it.copy.caption}\n\nLink in bio: ${it.etsyUrl}\n\nTip: add a trending sound in the app before posting.`);
+  if (it.wantVideo && !it.video && !it.videoDropped) {
+    if (!(await video.available())) {
+      store.updateItem(it, { wantVideo: false, videoHeld: true });
+      store.log('Era', `held the video for ${label(it)}: the server needs its video tool (ffmpeg) before I'm allowed to film. Pins are scheduled as normal.`);
+    } else {
+      await filmAndCheck(it);
+    }
   }
   store.updateItem(it, { status: 'scheduled' });
   store.act('besnik', 'shelf', { icon: 'doc' });
+}
+
+// Era films; the eagle checks 6 frames against the real product and the first frame. Max 2 takes, else dropped.
+async function filmAndCheck(it) {
+  const secs = (it.idea && it.idea.duration) || 5;
+  const take = (it.videoTakes || 0) + 1;
+  const extra = it.videoFeedback ? ` Important fix from review: ${it.videoFeedback}` : '';
+  store.act('era', 'work', { label: `Filming take ${take}` });
+  const raw = await ideogram.video({
+    image: it.lifestyle, duration: secs, costUSD: 0.084 * secs, fileName: `promo-${it.id}-raw-${take}.mp4`, agent: 'Era',
+    prompt: `${it.copy.motion} Realistic live-action footage, like a real camera filmed it. The person keeps exactly the same face, body proportions and height in every frame; limbs and hands move naturally and never stretch or bend wrongly. The garment and its printed artwork stay exactly as in the first frame, never morphing. Slow, steady, cinematic camera.${extra}`
+  });
+  const fin = await video.finish(raw.file, `promo-${it.id}-clip-${take}.mp4`);
+  const info = await video.probe(fin);
+  const stills = await video.frames(fin, 6);
+  store.act('era', 'idle');
+  store.updateItem(it, { videoTakes: take });
+  let check = { ok: true, score: null, problems: [] };
+  if (stills.length) {
+    const ref = [forCheck(it.lifestyle), forCheck(it.mockup)].filter(Boolean);
+    check = await claude.askJSON({
+      model: 'smart', agent: 'Shqiponja', what: 'video inspection', mockKind: 'check', maxTokens: 700,
+      system: 'You are the strict quality director of a premium clothing brand. Only realistic, flawless clips go out.',
+      content: [...ref.map(imgBlock), ...stills.map(imgBlock), { type: 'text', text: `Image 1 is the approved first frame${ref.length > 1 ? ', image 2 the real product photo' : ''}; the remaining ${stills.length} images are frames taken in order through the finished ${secs}-second video. Intended action: ${it.copy.motion}
+Check every frame: 1) the person's face, body proportions, height and build stay consistent and natural (no stretching, shrinking, extra or bent limbs, melting hands); 2) the garment and its printed artwork stay the same as the first frame and the real product (no morphing, drifting or changing print); 3) the intended action actually happens and looks physically believable; 4) it looks like real filmed footage, not AI; 5) nothing important sits in the top or bottom 15% of the frame.
+Return JSON only: {"ok": true or false, "score": 1-10, "problems": ["short problems, empty if none"], "fix": "one sentence for the next take"}. ok must be false if any of checks 1-4 fail or score is below 8.` }]
+    });
+  }
+  const sizeOk = info.width === 1080 && info.height === 1920;
+  if (!sizeOk) check = { ok: false, score: check.score, problems: [`video is ${info.width}x${info.height}, not 1080x1920`].concat(check.problems || []), fix: check.fix };
+  if (!check.ok) {
+    if (take < 2) {
+      store.updateItem(it, { videoFeedback: check.fix || (check.problems || []).join('; ') });
+      store.log('Shqiponja', `sent the ${label(it)} video back to Era: ${(check.problems || []).join('; ').slice(0, 160)}`);
+      throw new Error('Video take 1 did not pass the eagle; filming take 2.'); // the office retries this step
+    }
+    store.updateItem(it, { videoDropped: true, videoCheck: check });
+    store.log('Shqiponja', `dropped the ${label(it)} video after 2 takes: ${(check.problems || []).join('; ').slice(0, 160)}. The pins still go out.`);
+    if (it.idea) telegram.sendText(`🦅 Your video idea didn't reach my quality bar after 2 takes (${(check.problems || []).slice(0, 2).join('; ')}), so I haven't sent it. The Pinterest still is scheduled.`);
+    return;
+  }
+  store.state.videos = (store.state.videos || []).concat(Date.now());
+  store.updateItem(it, { video: fin, videoCheck: check });
+  store.log('Era', `filmed a ${secs}-second 1080x1920 clip for ${label(it)}; the eagle passed it (${check.score ?? '–'}/10). It's on your Telegram.`);
+  await telegram.sendVideo(fin, `🎬 Ready for TikTok and Instagram Reels (1080×1920, eagle ${check.score ?? '–'}/10):\n\n${it.copy.caption}\n\nLink in bio: ${it.etsyUrl}\n\nTip: add a trending sound in the app before posting.`);
 }
 
 function decidePromo(it, ok) {

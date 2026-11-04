@@ -12,7 +12,7 @@ export DEBIAN_FRONTEND=noninteractive
 
 echo "==> Installing system packages"
 apt-get update -y
-apt-get install -y curl git ca-certificates gnupg debian-keyring debian-archive-keyring apt-transport-https ufw
+apt-get install -y curl git ca-certificates gnupg debian-keyring debian-archive-keyring apt-transport-https ufw ffmpeg
 
 if ! command -v node >/dev/null || [ "$(node -v | cut -c2- | cut -d. -f1)" -lt 22 ]; then
   echo "==> Installing Node.js 22"
