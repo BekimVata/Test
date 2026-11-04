@@ -22,7 +22,7 @@ const ready = () => { const c = config.load(); return !mock.on && c.telegramToke
 
 function buttons(itemId, stage) {
   return { inline_keyboard: [[
-    { text: stage === 'publish' ? '✅ Publish to Etsy' : stage === 'promo' ? '✅ Approve advert' : '✅ Approve', callback_data: `d:${itemId}:${stage}:1` },
+    { text: stage === 'publish' ? '✅ Publish to Etsy' : stage === 'promo' ? '✅ Approve advert' : stage === 'story' ? '✅ Approve stills, film it' : '✅ Approve', callback_data: `d:${itemId}:${stage}:1` },
     { text: '❌ Reject', callback_data: `d:${itemId}:${stage}:0` }
   ]] };
 }
@@ -64,6 +64,18 @@ async function sendDocument(file, caption) {
   fd.append('document', new Blob([buf]), file);
   try { await request('Telegram', `https://api.telegram.org/bot${cfg.telegramToken}/sendDocument`, { method: 'POST', body: fd }, { retries: 2 }); }
   catch (e) { console.error('telegram doc', e.message); }
+}
+
+async function sendPhotoFile(file, caption) {
+  if (!ready()) return;
+  const cfg = config.load();
+  const fd = new FormData();
+  fd.append('chat_id', cfg.telegramChatId);
+  fd.append('caption', (caption || '').slice(0, 1000));
+  const buf = fs.readFileSync(path.join(config.DATA, 'files', file));
+  fd.append('photo', new Blob([buf], { type: 'image/png' }), file);
+  try { await request('Telegram', `https://api.telegram.org/bot${cfg.telegramToken}/sendPhoto`, { method: 'POST', body: fd }, { retries: 2 }); }
+  catch (e) { console.error('telegram photo', e.message); await sendDocument(file, caption); }
 }
 
 async function sendVideo(file, caption) {
@@ -139,4 +151,4 @@ async function test() {
   return `Connected as @${me.result.username}${cfg.telegramChatId ? ' · paired' : ' · send the pairing code to the bot'}`;
 }
 
-module.exports = { poll, askApproval, sendText, sendDocument, sendVideo, test, setDecisionHandler: f => { onDecision = f; }, setIdeaHandler: f => { onIdea = f; } };
+module.exports = { poll, askApproval, sendText, sendDocument, sendVideo, sendPhotoFile, test, setDecisionHandler: f => { onDecision = f; }, setIdeaHandler: f => { onIdea = f; } };

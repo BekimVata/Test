@@ -14,9 +14,10 @@ const telegram = require('./telegram');
 const { BRAND, COLLECTION, DIRECTIONS, COLOURWAYS, colourway, EMBLEM_PROMPT, designPrompt, shortTitle } = require('./briefs');
 const preview = require('./preview');
 const marketing = require('./marketing');
+const stories = require('./stories');
 
-const ACTIONABLE = ['queued', 'approved_design', 'approved_publish', 'approved_promo'];
-const EST = { queued: 0.12, approved_design: 0.02, approved_publish: 0, approved_promo: 0.35 }; // £ per step, for the cap
+const ACTIONABLE = ['queued', 'approved_design', 'approved_publish', 'approved_promo', 'approved_story'];
+const EST = { queued: 0.12, approved_design: 0.02, approved_publish: 0, approved_promo: 0.35, approved_story: 1.0 }; // £ per step, for the cap
 let busy = false;
 let capNotedDay = '';
 
@@ -24,7 +25,7 @@ const gbp = n => '£' + (n / 100).toFixed(2);
 const productName = p => p === 'sweatshirt' ? 'Christmas jumper' : p === 'hoodie' ? 'Christmas hoodie' : p;
 const productsOf = it => it.products || [it.product];
 const cwName = it => it.colourway && it.colourway !== 'navy' ? ` (${colourway(it.colourway).name})` : '';
-const label = it => it.kind === 'promo' ? require('./marketing').label(it) : it.kind === 'kit' ? 'shop kit' : `${DIRECTIONS[it.direction]?.name || it.direction}${cwName(it)} ${productsOf(it).map(productName).join(' + ')}`;
+const label = it => it.kind === 'story' ? require('./stories').label(it) : it.kind === 'promo' ? require('./marketing').label(it) : it.kind === 'kit' ? 'shop kit' : `${DIRECTIONS[it.direction]?.name || it.direction}${cwName(it)} ${productsOf(it).map(productName).join(' + ')}`;
 const icon = it => it.product === 'mug' ? 'mug' : it.kind === 'kit' ? 'doc' : 'shirt';
 
 function enqueueBatch(directions = Object.keys(DIRECTIONS), products = ['sweatshirt', 'hoodie'], colourways = ['navy']) {
@@ -53,6 +54,11 @@ async function decide(id, stage, ok, by = 'office') {
     store.log('You', `${ok ? 'approved' : 'rejected'} the ${label(it)} design (${by}).`);
     if (!ok) store.act('arben', 'sad');
     return true;
+  }
+  if (stage === 'story' && it.kind === 'story') {
+    const done = stories.decide(it, ok);
+    if (done) store.log('You', `${ok ? 'approved the stills for' : 'rejected'} the ${stories.label(it)} (${by}).`);
+    return done;
   }
   if (stage === 'promo' && it.kind === 'promo') {
     const done = marketing.decidePromo(it, ok);
@@ -86,7 +92,7 @@ async function tick() {
   if (cfg.paused) return;
   const now = Date.now();
   // Your decisions move first, then the shop kit, then new designs.
-  const rank = i => i.status === 'approved_publish' ? 0 : i.status === 'approved_design' ? 1 : i.status === 'approved_promo' ? 2 : i.kind === 'kit' ? 3 : i.kind === 'promo' ? 5 : 4;
+  const rank = i => i.status === 'approved_publish' ? 0 : i.status === 'approved_design' ? 1 : i.status === 'approved_promo' || i.status === 'approved_story' ? 2 : i.kind === 'story' ? 4 : i.kind === 'kit' ? 3 : i.kind === 'promo' ? 5 : 4;
   // The marketing team plans its adverts when no design work is waiting.
   if (!store.state.items.some(i => i.kind === 'design' && ACTIONABLE.includes(i.status))) { try { marketing.planToday(); } catch (e) { console.error('plan', e); } }
   const it = store.state.items
@@ -96,6 +102,7 @@ async function tick() {
   busy = true;
   try {
     if (it.kind === 'kit') await makeKit(it);
+    else if (it.kind === 'story') { if (it.status === 'queued') await stories.makeStills(it); else await stories.filmAndEdit(it); }
     else if (it.kind === 'promo') { if (it.status === 'queued') await marketing.makeAdvert(it); else await marketing.scheduleAdvert(it); }
     else if (it.status === 'queued') await designStep(it);
     else if (it.status === 'approved_design') await productStep(it);
@@ -359,6 +366,11 @@ function start() {
         if (it.idea) telegram.sendText('🦅 Redoing your telescope advert: the first version used the front photo of the hoodie, so the back print was made up. The corrected one comes to you here shortly. Ignore the earlier one.');
       }
     }
+  }
+  // The two approved storyboards (4 Nov), both on the navy Star Map hoodie.
+  if (!store.state.storyboardsV1) {
+    const sm = store.state.items.find(i => i.kind === 'design' && i.direction === 'starmap' && (i.colourway || 'navy') === 'navy' && (i.printifyAll || []).some(m => m.kind === 'hoodie' && m.published));
+    if (sm) { store.state.storyboardsV1 = true; store.save(); stories.create('lookup', sm.id); stories.create('wear', sm.id); }
   }
   // Bekim's telescope idea (3 Nov), on the Star Map hoodie in midnight navy: the constellation design suits a stargazer.
   if (!store.state.ideaTelescope) {

@@ -710,7 +710,7 @@ const ROLE_NOTE = {};
 const STATUS = {
   queued: ["working", "Designing"], awaiting_design: ["waiting", "Your approval"], approved_design: ["working", "Making product"],
   awaiting_publish: ["waiting", "Publish?"], approved_publish: ["working", "Publishing"], published: ["done", "Live on Etsy"],
-  awaiting_promo: ["waiting", "Approve advert"], approved_promo: ["working", "Scheduling"], scheduled: ["done", "Scheduled"],
+  awaiting_promo: ["waiting", "Approve advert"], awaiting_story: ["waiting", "Approve stills"], approved_story: ["working", "Filming"], approved_promo: ["working", "Scheduling"], scheduled: ["done", "Scheduled"],
   rejected: ["asleep", "Rejected"], failed: ["waiting", "Failed"], delivered: ["done", "Delivered"]
 };
 const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
@@ -776,14 +776,15 @@ function addLog(line, prepend = true) {
 }
 
 // ----- panels -----
-function itemTitle(i) { const n = p => p === "sweatshirt" ? "jumper" : p; if (i.kind === "promo" && i.promo) return i.promo.label; return i.kind === "kit" ? "Shop kit" : `${i.directionName || i.direction}${i.colourway && i.colourway !== "navy" ? " (" + i.colourwayName + ")" : ""} · ${(i.products || [i.product]).map(n).join(" + ")}`; }
+function itemTitle(i) { const n = p => p === "sweatshirt" ? "jumper" : p; if (i.kind === "promo" && i.promo) return i.promo.label; if (i.kind === "story" && i.story) return "Storyboard " + i.story.label; return i.kind === "kit" ? "Shop kit" : `${i.directionName || i.direction}${i.colourway && i.colourway !== "navy" ? " (" + i.colourwayName + ")" : ""} · ${(i.products || [i.product]).map(n).join(" + ")}`; }
 function renderApprovals() {
-  const waiting = LIVE.items.filter(i => i.status === "awaiting_design" || i.status === "awaiting_publish" || i.status === "awaiting_promo");
+  const waiting = LIVE.items.filter(i => i.status === "awaiting_design" || i.status === "awaiting_publish" || i.status === "awaiting_promo" || i.status === "awaiting_story");
   st.approvals = waiting; st.pile = waiting.length;
   apprEl.innerHTML = "";
   if (!waiting.length) { apprEl.innerHTML = `<div class="empty">Nothing waiting. You'll get a Telegram notification when an agent brings work to your desk.</div>`; return; }
   for (const it of waiting) {
     if (it.status === "awaiting_promo") { apprEl.appendChild(promoCard(it)); continue; }
+    if (it.status === "awaiting_story") { apprEl.appendChild(storyCard(it)); continue; }
     const pub = it.status === "awaiting_publish";
     const img = pub && it.mockups && it.mockups[0] ? it.mockups[0] : (it.preview || it.design ? "/files/" + encodeURIComponent(it.preview || it.design) : "");
     const d = document.createElement("div"); d.className = "appr live";
@@ -798,6 +799,18 @@ function renderApprovals() {
     d.querySelector(".no").onclick = () => decide(it, false, d);
     apprEl.appendChild(d);
   }
+}
+function storyCard(it) {
+  const st = (it.story && it.story.stills) || [];
+  const d = document.createElement("div"); d.className = "appr live fiverr";
+  d.innerHTML = `<img src="/files/${encodeURIComponent((st[0] || {}).file || "")}" alt="Storyboard still" loading="lazy"><div>
+    <div class="t">Approve these stills and film?</div>
+    <div class="m">${esc(itemTitle(it))}</div>
+    ${st.map(x => `<div class="m"><a href="/files/${encodeURIComponent(x.file)}" target="_blank" rel="noopener">Still: ${esc(x.id)}</a> · eagle ${x.score ?? "–"}/10</div>`).join("")}
+    <div class="btns"><button class="btn ok">Approve</button><button class="btn no">Reject</button></div></div>`;
+  d.querySelector(".ok").onclick = () => decide(it, true, d);
+  d.querySelector(".no").onclick = () => decide(it, false, d);
+  return d;
 }
 function promoCard(it) {
   const p = it.promo || {}, c = p.copy || {};
@@ -817,7 +830,7 @@ function promoCard(it) {
 }
 async function decide(it, ok, el) {
   el.querySelectorAll("button").forEach(b => b.disabled = true);
-  await api("/api/decide", { id: it.id, stage: it.status === "awaiting_publish" ? "publish" : it.status === "awaiting_promo" ? "promo" : "design", ok });
+  await api("/api/decide", { id: it.id, stage: it.status === "awaiting_publish" ? "publish" : it.status === "awaiting_promo" ? "promo" : it.status === "awaiting_story" ? "story" : "design", ok });
 }
 function renderMarketing() {
   const m = LIVE.marketing || {}, el = document.getElementById("mkt"); if (!el) return;
@@ -837,7 +850,7 @@ function renderPipe() {
   for (const i of items) {
     const [cls, lab] = STATUS[i.status] || ["asleep", i.status];
     const li = document.createElement("li");
-    const pv = i.promo ? i.promo.pin : (i.preview || i.design); const thumb = pv ? `<img src="/files/${encodeURIComponent(pv)}" alt="">` : `<span class="ph"></span>`;
+    const pv = i.promo ? i.promo.pin : i.story ? ((i.story.stills || [])[0] || {}).file : (i.preview || i.design); const thumb = pv ? `<img src="/files/${encodeURIComponent(pv)}" alt="">` : `<span class="ph"></span>`;
     li.innerHTML = `${thumb}<div><div class="n">#${i.id} ${esc(itemTitle(i))}</div><div class="r">${i.error && i.status !== "published" ? "Problem: " + esc(i.error.slice(0, 90)) : i.promo && i.promo.copy ? esc(i.promo.copy.headline) : i.listing ? esc(i.listing.title.slice(0, 70)) : i.attempts ? `Design attempt ${i.attempts}` : "Waiting to start"}</div></div><span class="chip ${cls}">${lab}</span>`;
     if (i.status === "failed") { const b = document.createElement("button"); b.className = "btn"; b.textContent = "Retry"; b.onclick = () => api("/api/retry", { id: i.id }); li.appendChild(b); }
     el.appendChild(li);

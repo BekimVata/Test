@@ -388,4 +388,4 @@ function migrateShareLinks() {
   if (n) store.log('Besnik', `switched ${n} scheduled pins to Share & Save links (banians.etsy.com), so sales from them earn the fee refund.`);
 }
 
-module.exports = { shareLink, migrateShareLinks, addIdea, settings, planToday, makeAdvert, scheduleAdvert, decidePromo, pinterestCsv, markUploaded, label };
+module.exports = { forCheck, shareLink, migrateShareLinks, addIdea, settings, planToday, makeAdvert, scheduleAdvert, decidePromo, pinterestCsv, markUploaded, label };

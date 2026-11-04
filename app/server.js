@@ -86,7 +86,7 @@ function publicItem(i) {
   return {
     id: i.id, kind: i.kind, direction: i.direction, directionName: DIRECTIONS[i.direction]?.name, colourway: i.colourway || 'navy', colourwayName: (pipeline.COLOURWAYS[i.colourway || 'navy'] || {}).name, product: i.product,
     status: i.status, attempts: i.attempts, design: i.design, preview: i.preview, files: i.files, check: i.check, listing: i.listing,
-    mockups: i.printify?.mockups, price: i.printify?.price, cost: i.printify?.cost, products: i.products || [i.product], made: (i.printifyAll || []).map(m => ({ kind: m.kind, price: m.price, cost: m.cost, title: m.listing?.title })), error: i.error, created: i.created, updated: i.updated, kit: i.kit, promo: i.kind === 'promo' ? { label: require('./lib/marketing').label(i), pin: i.pin, lifestyle: i.lifestyle, video: i.video, copy: i.copy, etsyUrl: i.etsyUrl, productKind: i.productKind } : undefined
+    mockups: i.printify?.mockups, price: i.printify?.price, cost: i.printify?.cost, products: i.products || [i.product], made: (i.printifyAll || []).map(m => ({ kind: m.kind, price: m.price, cost: m.cost, title: m.listing?.title })), error: i.error, created: i.created, updated: i.updated, kit: i.kit, story: i.kind === 'story' ? { label: require('./lib/stories').label(i), stills: Object.entries(i.shots || {}).map(([k, v]) => ({ id: k, file: v.still, score: v.check && v.check.score })), video: i.video } : undefined, promo: i.kind === 'promo' ? { label: require('./lib/marketing').label(i), pin: i.pin, lifestyle: i.lifestyle, video: i.video, copy: i.copy, etsyUrl: i.etsyUrl, productKind: i.productKind } : undefined
   };
 }
 function snapshot() {
