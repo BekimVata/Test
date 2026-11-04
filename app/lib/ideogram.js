@@ -92,8 +92,15 @@ async function edit({ images, prompt, size = 'auto', quality = 'medium', fileNam
 
 // 5-second silent video from a first-frame image (Kling 3.0 Standard via Ideogram, about 42 credits).
 // Silent on purpose: music is added in the TikTok / Instagram app, where trending sounds are licensed.
-const VIDEO_URL = 'https://api.ideogram.ai/v2/video/generate/kling-3-standard-image-to-video';
-async function video({ image, prompt, duration = 5, fileName, agent = 'Era', costUSD = 0.42 }) {
+// Video models (4 Nov): Seedance 2.5 renders 1080p natively; MiniMax H3 at 768P; Kling 3.0 Standard was the first choice.
+const VIDEO_MODELS = {
+  seedance25: { name: 'Seedance 2.5', url: 'https://api.ideogram.ai/v2/video/generate/seedance-2-5-image-to-video', min: 4, max: 30, extra: { resolution: '1080p' } },
+  minimax: { name: 'MiniMax H3', url: 'https://api.ideogram.ai/v2/video/generate/minimax-h3-image-to-video', min: 5, max: 15, extra: { resolution: '768P' } },
+  kling3: { name: 'Kling 3.0', url: 'https://api.ideogram.ai/v2/video/generate/kling-3-standard-image-to-video', min: 3, max: 15, extra: { negative_prompt: 'distorted text, changing the printed design, warped hands, extra limbs, logos, watermark' } }
+};
+async function video({ image, endImage, prompt, duration = 5, fileName, agent = 'Era', costUSD = 0.42, model = 'kling3' }) {
+  const M = VIDEO_MODELS[model] || VIDEO_MODELS.kling3;
+  duration = Math.max(M.min, Math.min(M.max, Math.round(duration)));
   const cfg = config.load();
   const name = fileName || `video-${Date.now()}.mp4`;
   if (mock.on) {
@@ -104,11 +111,12 @@ async function video({ image, prompt, duration = 5, fileName, agent = 'Era', cos
   const fd = new FormData();
   const b = fs.readFileSync(path.join(config.DATA, 'files', image));
   fd.append('image', new Blob([b], { type: sniff(b) }), image);
+  if (endImage) { const e = fs.readFileSync(path.join(config.DATA, 'files', endImage)); fd.append('end_image', new Blob([e], { type: sniff(e) }), endImage); }
   fd.append('prompt', prompt);
-  fd.append('negative_prompt', 'distorted text, changing the printed design, warped hands, extra limbs, logos, watermark');
+  for (const [k, v] of Object.entries(M.extra)) fd.append(k, v);
   fd.append('duration', String(duration));
-  fd.append('generate_audio', 'false');
-  const acc = await request('Ideogram video', VIDEO_URL, { method: 'POST', headers: { 'Api-Key': cfg.ideogramKey }, body: fd }, { retries: 1, timeoutMs: 120000 });
+  if (model !== 'minimax') fd.append('generate_audio', 'false');
+  const acc = await request('Ideogram video', M.url, { method: 'POST', headers: { 'Api-Key': cfg.ideogramKey }, body: fd }, { retries: 1, timeoutMs: 120000 });
   if (!acc.generation_id) throw new Error('Ideogram did not start the video: ' + JSON.stringify(acc).slice(0, 200));
   const until = Date.now() + 15 * 60 * 1000;
   while (Date.now() < until) {
@@ -117,7 +125,7 @@ async function video({ image, prompt, duration = 5, fileName, agent = 'Era', cos
     if (g.status === 'failed') throw new Error('Ideogram video failed: ' + (g.failure_reason || 'unknown reason'));
     if (g.status === 'completed') {
       const usd = g.usage_cost_usd_micros ? g.usage_cost_usd_micros / 1e6 : costUSD;
-      store.spend(usd * cfg.usdToGbp, 'Ideogram video (Kling)', agent);
+      store.spend(usd * cfg.usdToGbp, `Ideogram video (${M.name})`, agent);
       const v = (g.data || [])[0];
       if (!v || !v.url) throw new Error('Ideogram video finished without a file.');
       fs.writeFileSync(path.join(config.DATA, 'files', name), await request('Ideogram download', v.url, {}, { raw: true }));
@@ -127,4 +135,4 @@ async function video({ image, prompt, duration = 5, fileName, agent = 'Era', cos
   throw new Error('The video took longer than 15 minutes. It will be retried.');
 }
 
-module.exports = { generate, edit, video, test };
+module.exports = { generate, edit, video, test, VIDEO_MODELS };

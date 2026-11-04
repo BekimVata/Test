@@ -28,10 +28,10 @@ const STORIES = {
       { type: 'photo', view: 'back', secs: 2, text: 'the star map you can wear' },
       { type: 'ai', id: 'rooftop', view: 'back', secs: 3,
         still: 'A stylish man in his late twenties seen from behind, standing on a city rooftop at night, the city softly lit below, a clear sky full of stars above. The big printed artwork on the back of his hoodie is fully visible, centred and sharp.',
-        motion: 'He slowly tilts his head up to look at the stars while the camera drifts gently around him. Calm, cinematic.' },
+        motion: 'He stays almost completely still, looking up at the stars; only his hair and breathing move slightly, his hands relaxed at his sides and still. The camera does the moving: a very slow, smooth push-in. The printed artwork on his back stays perfectly still and unchanged.' },
       { type: 'ai', id: 'turn', view: 'front', secs: 3, samePersonAs: 'rooftop',
         still: 'The same man on the same rooftop at night, now facing the camera with a slight, relaxed smile, warm string lights softly out of focus behind him. The front of the hoodie shows only the small chest emblem.',
-        motion: 'He turns naturally towards the camera and smiles slightly; gentle handheld drift. His face and the hoodie stay exactly the same.' },
+        motion: 'He stands still facing the camera and gives a slight, natural smile; his body and hands do not move. The camera makes a very slow, smooth push-in. His face and the hoodie, including the small chest emblem, stay exactly the same.' },
       { type: 'photo', view: 'front', secs: 2, text: 'navy · back print · sizes S–3XL' },
       { type: 'card', secs: 2 }
     ]
@@ -129,29 +129,53 @@ async function filmAndEdit(it) {
   const s = STORIES[it.story];
   const shots = { ...(it.shots || {}) };
   for (const sh of s.shots.filter(x => x.type === 'ai')) {
+    if (shots[sh.id].clipOk) continue;
+    for (;;) {
     const cur = shots[sh.id];
-    if (cur.clipOk) continue;
+    // Try the video models in turn (best first, the last winner first of all); keep the first clip that passes.
+    const order = [store.state.videoModelBest, 'seedance25', 'minimax', 'kling3'].filter((m, i, a) => m && a.indexOf(m) === i);
+    const tried = cur.modelsTried || [];
+    const model = order.find(m => !tried.includes(m));
+    if (!model) {
+      store.updateItem(it, { status: 'rejected', dropped: true });
+      store.log('Shqiponja', `dropped ${label(it)}: the ${sh.id} clip failed my frame check on every video model (${(cur.clipCheck && cur.clipCheck.problems || []).join('; ').slice(0, 140)}).`);
+      telegram.sendText(`🦅 ${label(it)}: the "${sh.id}" shot failed my frame check on all ${order.length} video models (${((cur.clipCheck && cur.clipCheck.problems) || []).slice(0, 2).join('; ')}). Nothing was sent.`);
+      return;
+    }
     const take = (cur.takes || 0) + 1;
-    store.act('era', 'work', { label: `Filming ${sh.id}, take ${take}` });
-    const raw = await ideogram.video({ image: cur.still, duration: sh.secs, costUSD: 0.084 * sh.secs, agent: 'Era', fileName: `story-${it.id}-${sh.id}-raw${take}.mp4`,
-      prompt: `${sh.motion} Realistic live-action footage. The person keeps exactly the same face, body proportions and height in every frame; limbs and hands move naturally and never stretch. The hoodie and its printed artwork never change.${cur.clipFix ? ' Important fix from review: ' + cur.clipFix : ''}` });
-    const fin = await video.finish(raw.file, `story-${it.id}-${sh.id}-take${take}.mp4`);
+    const M = ideogram.VIDEO_MODELS[model];
+    const secs = Math.max(M.min, sh.secs);
+    store.act('era', 'work', { label: `Filming ${sh.id} (${M.name})` });
+    let raw;
+    try { raw = await ideogram.video({ model, image: cur.still, duration: secs, costUSD: 0.12 * secs, agent: 'Era', fileName: `story-${it.id}-${sh.id}-${model}.mp4`,
+      prompt: `${sh.motion} Realistic live-action footage. The person keeps exactly the same face, body proportions and height in every frame; limbs and hands stay natural and never stretch or melt. The hoodie and its printed artwork never change.${cur.clipFix ? ' Important fix from review: ' + cur.clipFix : ''}` }); }
+    catch (e) {
+      // A model that errors (not money-related) is skipped rather than retried for ever.
+      if (/credit|balance|limit|402/i.test(e.message || '')) throw e;
+      store.act('era', 'idle');
+      shots[sh.id] = { ...cur, modelsTried: tried.concat(model), clipCheck: { problems: [`${M.name} error: ${(e.message || '').slice(0, 100)}`] } };
+      store.updateItem(it, { shots });
+      store.log('Era', `${M.name} couldn't film the ${sh.id} shot (${(e.message || '').slice(0, 120)}). Trying the next model.`);
+      continue;
+    }
+    const fin = await video.finish(raw.file, `story-${it.id}-${sh.id}-${model}-fin.mp4`);
     const stills = await video.frames(fin, 6);
     store.act('era', 'idle');
     let c = { ok: true, score: null, problems: [] };
     if (stills.length) c = await check([img(marketing.forCheck(cur.still)), img(sh.view === 'back' ? it.back : it.front), ...stills.map(img), { type: 'text', text:
-      `Image 1 is the approved first frame, image 2 the real product. The other ${stills.length} images are frames, in order, from the finished ${sh.secs}-second clip. Intended action: ${sh.motion}
-Check every frame: 1) the person's face, proportions, height and build stay consistent and natural (no stretching, shrinking, extra or bent limbs, melting hands); 2) the hoodie and its print stay the same as the first frame and the real product; 3) the intended action happens and is physically believable; 4) it looks like real filmed footage. ${VERDICT}` }]);
-    shots[sh.id] = { ...cur, takes: take, clip: fin, clipCheck: c, clipOk: !!c.ok, clipFix: c.fix };
+      `Image 1 is the approved first frame, image 2 the real product. The other ${stills.length} images are frames, in order, from the finished clip (only its first ${sh.secs} seconds will be used). Intended action: ${sh.motion}
+Check every frame: 1) the person's face, proportions, height and build stay consistent and natural (no stretching, shrinking, extra or bent limbs, melting hands); 2) the hoodie and its print stay the same as the first frame and the real product, with no shapes moving or changing; 3) the intended action happens and is physically believable; 4) it looks like real filmed footage. ${VERDICT}` }]);
+    shots[sh.id] = { ...cur, takes: take, modelsTried: tried.concat(model), clip: fin, clipModel: model, clipCheck: c, clipOk: !!c.ok, clipFix: c.fix };
     store.updateItem(it, { shots });
     if (!c.ok) {
-      if (take < 2) { store.log('Shqiponja', `sent the ${sh.id} clip for ${label(it)} back to Era: ${(c.problems || []).join('; ').slice(0, 150)}`); throw new Error(`The ${sh.id} clip didn't pass; filming take 2.`); }
-      store.updateItem(it, { status: 'rejected', dropped: true });
-      store.log('Shqiponja', `dropped ${label(it)}: the ${sh.id} clip failed my check twice (${(c.problems || []).join('; ').slice(0, 140)}).`);
-      telegram.sendText(`🦅 ${label(it)}: the "${sh.id}" clip failed my frame check twice (${(c.problems || []).slice(0, 2).join('; ')}), so I haven't sent it. Nothing else is affected.`);
-      return;
+      store.log('Shqiponja', `the ${sh.id} clip from ${M.name} didn't pass (${(c.problems || []).join('; ').slice(0, 140)}). Trying the next model.`);
+      continue;
     }
-    store.log('Shqiponja', `passed the ${sh.id} clip for ${label(it)} (${c.score ?? '–'}/10).`);
+    if (store.state.videoModelBest !== model) { store.state.videoModelBest = model; store.save(); }
+    store.log('Shqiponja', `passed the ${sh.id} clip for ${label(it)} from ${M.name} (${c.score ?? '–'}/10).`);
+    telegram.sendText(`🦅 Video model test, "${sh.id}" shot: ${M.name} passed (${c.score ?? '–'}/10)${tried.length ? ' after ' + tried.map(m => ideogram.VIDEO_MODELS[m].name).join(', ') + ' failed' : ' first time'}.`);
+    break;
+    }
   }
   // Edit: real photos, approved clips, text, end card.
   store.act('era', 'work', { label: 'Editing' });

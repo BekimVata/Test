@@ -385,6 +385,16 @@ function start() {
       store.log('Shqiponja', `retrying the telescope still with the telescope aimed at the moon.`);
     }
   }
+  // Re-film Wear the Universe with the stronger video models and calmer motion (approved stills kept, 4 Nov 21:10).
+  if (!store.state.storyRefilmV1) {
+    store.state.storyRefilmV1 = true; store.save();
+    for (const it of store.state.items) if (it.kind === 'story' && it.story === 'wear' && it.status === 'rejected' && it.dropped) {
+      const shots = {};
+      for (const [k, v] of Object.entries(it.shots || {})) if (v.stillOk) shots[k] = { still: v.still, tries: v.tries, check: v.check, stillOk: true };
+      store.updateItem(it, { status: 'approved_story', dropped: false, shots, errors: 0, retryAt: null, error: null });
+      store.log('Shqiponja', `re-filming ${stories.label(it)} with Seedance 2.5, then MiniMax H3, with calmer motion.`);
+    }
+  }
   // The two approved storyboards (4 Nov), both on the navy Star Map hoodie.
   if (!store.state.storyboardsV1) {
     const sm = store.state.items.find(i => i.kind === 'design' && i.direction === 'starmap' && (i.colourway || 'navy') === 'navy' && (i.printifyAll || []).some(m => m.kind === 'hoodie' && m.published));
