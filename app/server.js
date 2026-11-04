@@ -184,7 +184,7 @@ const server = http.createServer(async (req, res) => {
     }
     if (p === '/api/pinterest.csv') {
       const base = `https://${req.headers.host}`;
-      const { csv, count } = require('./lib/marketing').pinterestCsv(base, { all: url.searchParams.get('all') === '1' });
+      const { csv, count } = require('./lib/marketing').pinterestCsv(base, { all: url.searchParams.get('all') === '1', minScore: Number(url.searchParams.get('minScore')) || 0 });
       return send(res, 200, csv, 'text/csv; charset=utf-8', { 'Content-Disposition': `attachment; filename="banians-pins-${store.today()}.csv"`, 'X-Pin-Count': String(count) });
     }
     if (p === '/api/share') return send(res, 200, { base: `/share/${config.load().shareToken}/` });
@@ -233,7 +233,7 @@ const server = http.createServer(async (req, res) => {
       const cws = Array.isArray(body.colourways) && body.colourways.length ? body.colourways.filter(c => pipeline.COLOURWAYS[c]) : undefined;
       return send(res, 200, { ok: true, added: pipeline.enqueueBatch(dirs, prods, cws) });
     }
-    if (p === '/api/pinterest-uploaded') return send(res, 200, { ok: true, marked: require('./lib/marketing').markUploaded() });
+    if (p === '/api/pinterest-uploaded') return send(res, 200, { ok: true, marked: require('./lib/marketing').markUploaded(Array.isArray(body.files) ? body.files.map(String) : undefined) });
     if (p === '/api/kit') { pipeline.enqueueKit(); return send(res, 200, { ok: true }); }
     if (p === '/api/decide') return send(res, 200, { ok: await pipeline.decide(body.id, body.stage, !!body.ok, 'office') });
     if (p === '/api/pause') {

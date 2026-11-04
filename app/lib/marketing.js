@@ -357,17 +357,22 @@ function decidePromo(it, ok) {
 
 // ---------- Pinterest: a spreadsheet for Pinterest's free "Bulk create Pins" tool ----------
 // Pinterest schedules each pin at its publish date. Media links are the office's private share links.
-function pinterestCsv(baseUrl, { all = false } = {}) {
+function pinterestCsv(baseUrl, { all = false, minScore = 0 } = {}) {
   const token = config.load().shareToken;
-  const rows = (store.state.pins || []).filter(p => all || !p.uploaded);
+  const scoreOf = p => { const it = store.getItem(p.promoId); return it && it.check && it.check.score || 0; };
+  let rows = (store.state.pins || []).filter(p => (all || !p.uploaded) && scoreOf(p) >= minScore);
+  // Pins whose date has passed (or is under an hour away) get fresh slots, so Pinterest schedules rather than rejects them.
+  const stale = rows.filter(p => new Date(p.at + 'Z').getTime() < Date.now() + 3600e3);
+  if (stale.length) { const fresh = nextSlots(stale.length); stale.forEach((p, i) => { p.at = fresh[i]; }); store.save(); }
+  rows = rows.slice().sort((a, b) => a.at.localeCompare(b.at));
   const q = v => `"${String(v ?? '').replace(/"/g, '""')}"`;
   const lines = [['Title', 'Media URL', 'Pinterest board', 'Thumbnail', 'Description', 'Link', 'Publish date', 'Keywords'].join(',')];
   for (const p of rows) lines.push([p.title, `${baseUrl}/share/${token}/${p.file}`, p.board, '', p.description, p.link, p.at, p.keywords].map(q).join(','));
   return { csv: lines.join('\n') + '\n', count: rows.length };
 }
-function markUploaded() {
+function markUploaded(files) {
   let n = 0;
-  for (const p of store.state.pins || []) if (!p.uploaded) { p.uploaded = true; n++; }
+  for (const p of store.state.pins || []) if (!p.uploaded && (!files || files.includes(p.file))) { p.uploaded = true; n++; }
   store.save();
   if (n) store.log('Besnik', `${n} pins handed to Pinterest. They publish on their scheduled dates.`);
   return n;
