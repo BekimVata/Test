@@ -41,7 +41,7 @@ const STORIES = {
     caption: 'Look closer. The Star Map hoodie. Search Banians on Etsy. #christmas #lookup #moon #santa',
     shots: [
       { type: 'ai', id: 'telescope', view: 'back', secs: 6, text: 'look at the moon', textUntil: 1.5,
-        still: 'Night, seen from behind and slightly to the side: a man in his late twenties stands on a snowy hilltop beside a brass telescope on a tripod, leaning in to look through it. The big printed artwork on the back of his hoodie is clearly visible. Above dark pine-covered mountains hangs a huge, bright full moon in a sky full of stars. The moon is empty.',
+        still: 'Night. A man in his late twenties STANDS upright on a snowy hilltop, his back squarely to the camera, so the big printed artwork on the back of his hoodie is flat, large, centred between his shoulders and fully readable. A brass telescope on a tall tripod stands just to his right; he leans slightly and looks through its eyepiece, which is at his eye height, aimed up towards the moon. Above dark pine-covered mountains hangs a huge, bright full moon in a sky full of stars. The moon is empty.',
         motion: 'He looks through the telescope; a small dark silhouette of Santa Claus in his sleigh pulled by reindeer flies slowly across the face of the full moon from left to right; stars twinkle and a little snow drifts down; the camera slowly pushes in. The man and his hoodie stay exactly the same.' },
       { type: 'photo', view: 'back', secs: 2, text: 'Star Map hoodie · search Banians on Etsy' }
     ]
@@ -97,7 +97,9 @@ async function makeStills(it) {
     store.act('lule', 'idle');
     const c = await check([img(garment), img(other), ...(prev ? [img(marketing.forCheck(prev))] : []), img(marketing.forCheck(out.file)), { type: 'text', text:
       `Image 1 is the real ${sh.view} of the hoodie, image 2 the real ${sh.view === 'back' ? 'front' : 'back'}.${prev ? ' Image 3 is the earlier still of the same man.' : ''} The last image is a new still for a video. Brief: ${sh.still}
-Check: 1) the hoodie colour and print match the real product exactly, with the big artwork on the back and only the small emblem on the front; 2) it looks like a real photograph: natural proportions, face, hands and fabric; 3) the brief is followed${prev ? ', and it is clearly the same man' : ''}; 4) no text, logos or watermarks; 5) premium and on-brand (night sky, nature or city at night, midnight blue). ${VERDICT}` }]);
+Must pass: A) the hoodie colour and print match the real product (big artwork on the back, large and readable when the back is shown; only the small emblem on the front); B) it looks like a real photograph: natural proportions, face, hands and fabric, nothing AI-looking; C) the main action and setting of the brief are there (e.g. standing at the telescope, on a rooftop)${prev ? ', and it is clearly the same man' : ''}; D) no text, logos or watermarks.
+Small differences in secondary details (exact lighting, background decorations, the precise pose) are NOT failures: mention them in problems but do not lower the score below 8 for them alone. Score the overall quality as a premium fashion photograph.
+Return JSON only: {"ok": true or false, "score": 1-10, "problems": ["short problems, empty if none"], "fix": "one sentence for the next attempt"}. ok must be false if A, B, C or D fails, or the overall quality is below 8.` }]);
     shots[sh.id] = { ...cur, still: out.file, tries, check: c, stillOk: !!c.ok, fix: c.fix };
     store.updateItem(it, { shots });
     store.act('master', 'inspect', { agent: 'lule', ok: c.ok, reason: c.ok ? '' : (c.problems || [])[0] });

@@ -367,6 +367,16 @@ function start() {
       }
     }
   }
+  // Retry storyboards stopped at the stills stage before the fairer check and the standing telescope pose (4 Nov).
+  if (!store.state.storyRetryV1) {
+    store.state.storyRetryV1 = true; store.save();
+    for (const it of store.state.items) if (it.kind === 'story' && it.status === 'rejected' && it.dropped) {
+      const shots = {};
+      for (const [k, v] of Object.entries(it.shots || {})) if (v.stillOk) shots[k] = v;
+      store.updateItem(it, { status: 'queued', dropped: false, shots, errors: 0, retryAt: null, error: null });
+      store.log('Shqiponja', `retrying the stills for ${stories.label(it)} with the improved brief and check.`);
+    }
+  }
   // The two approved storyboards (4 Nov), both on the navy Star Map hoodie.
   if (!store.state.storyboardsV1) {
     const sm = store.state.items.find(i => i.kind === 'design' && i.direction === 'starmap' && (i.colourway || 'navy') === 'navy' && (i.printifyAll || []).some(m => m.kind === 'hoodie' && m.published));
