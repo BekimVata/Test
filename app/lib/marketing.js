@@ -183,7 +183,7 @@ Return JSON only:
  "pinTitle": "Pinterest title under 90 characters, with what it is and the key search words",
  "pinDescription": "Pinterest description, 250 to 450 characters, natural sentences with search phrases people use for Christmas jumpers and sci-fi gifts, ending with 'Free UK delivery.'",
  "keywords": ["6 Pinterest search phrases"],
- "caption": "TikTok and Instagram caption under 220 characters plus 6 to 8 relevant hashtags at the end",
+ "caption": "TikTok and Instagram caption under 220 characters, ending with the call to action 'Search Banians on Etsy' (TikTok links aren't clickable yet), plus 4 to 6 relevant hashtags at the end",
  "scene": "one sentence: the setting for a lifestyle photo of ${modelFor(it)} wearing the ${productWord(it.productKind)} (keep exactly that person), in the Banians world of starry skies meeting nature (snowy pines, mountains, frozen lakes, aurora, a cosy cabin at night)",
  "motion": "one sentence: a slow, subtle camera move or natural motion for a 5-second clip of that photo (snow falling, stars twinkling, a slow push-in)"}`
     });
@@ -346,7 +346,7 @@ Return JSON only: {"ok": true or false, "score": 1-10, "problems": ["short probl
   store.state.videos = (store.state.videos || []).concat(Date.now());
   store.updateItem(it, { video: fin, videoCheck: check });
   store.log('Era', `filmed a ${secs}-second 1080x1920 clip for ${label(it)}; the eagle passed it (${check.score ?? '–'}/10). It's on your Telegram.`);
-  await telegram.sendVideo(fin, `🎬 Ready for TikTok and Instagram Reels (1080×1920, eagle ${check.score ?? '–'}/10):\n\n${it.copy.caption}\n\nLink in bio: ${it.etsyUrl}\n\nTip: add a trending sound in the app before posting.`);
+  await telegram.sendVideo(fin, `🎬 Ready for TikTok and Instagram Reels (1080×1920, eagle ${check.score ?? '–'}/10):\n\n${it.copy.caption}\n\nTikTok: the caption says "search Banians on Etsy" (TikTok's bio link unlocks at 1,000 followers). Instagram: add a Story link sticker to ${it.etsyUrl}\n\nTip: add a trending sound in the app before posting.`);
 }
 
 function decidePromo(it, ok) {
