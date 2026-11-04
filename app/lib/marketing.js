@@ -50,6 +50,14 @@ function kitFile(kind) {
   return f && fs.existsSync(path.join(config.DATA, 'files', f.file)) ? f.file : null;
 }
 
+// Etsy Share & Save only credits links on the shop's own subdomain (banians.etsy.com/...), as Etsy's own
+// Share button produces. Plain etsy.com/listing links earn nothing, so every pin and caption uses this form.
+function shareLink(url) {
+  const shop = String(config.load().shopName || 'banians').toLowerCase().replace(/[^a-z0-9]/g, '');
+  const m = /etsy\.com\/(?:[a-z]{2}(?:-[a-z]{2})?\/)?listing\/(\d+)(\/[\w-]+)?/i.exec(String(url || ''));
+  return m ? `https://${shop}.etsy.com/uk/listing/${m[1]}${m[2] || ''}` : `https://${shop}.etsy.com`;
+}
+
 const label = it => {
   const src = store.getItem(it.sourceId);
   if (!src) return 'your advert idea';
@@ -156,7 +164,7 @@ async function makeAdvert(it) {
       }
     }
     if (!etsyUrl) throw new Error('The Etsy link for this product isn\'t ready yet (Printify is still syncing). Trying again later.');
-    store.updateItem(it, { mockup, etsyUrl });
+    store.updateItem(it, { mockup, etsyUrl: shareLink(etsyUrl) });
     store.act('besnik', 'idle');
   }
 
@@ -365,4 +373,14 @@ function markUploaded() {
   return n;
 }
 
-module.exports = { addIdea, settings, planToday, makeAdvert, scheduleAdvert, decidePromo, pinterestCsv, markUploaded, label };
+// One-off: move scheduled pins and adverts made before 4 Nov onto Share & Save links.
+function migrateShareLinks() {
+  if (store.state.shareLinksV1) return;
+  let n = 0;
+  for (const p of store.state.pins || []) { const l = shareLink(p.link); if (l !== p.link) { p.link = l; n++; } }
+  for (const it of store.state.items) if (it.kind === 'promo' && it.etsyUrl) { const l = shareLink(it.etsyUrl); if (l !== it.etsyUrl) store.updateItem(it, { etsyUrl: l }); }
+  store.state.shareLinksV1 = true; store.save();
+  if (n) store.log('Besnik', `switched ${n} scheduled pins to Share & Save links (banians.etsy.com), so sales from them earn the fee refund.`);
+}
+
+module.exports = { shareLink, migrateShareLinks, addIdea, settings, planToday, makeAdvert, scheduleAdvert, decidePromo, pinterestCsv, markUploaded, label };

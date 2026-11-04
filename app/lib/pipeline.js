@@ -348,6 +348,7 @@ async function retitleAll() {
 function start() {
   telegram.setDecisionHandler(decide);
   telegram.setIdeaHandler(text => marketing.addIdea(text));
+  marketing.migrateShareLinks();
   // Hoodie adverts made before 3 Nov 18:45 used the front photo (small emblem) instead of the back print: redo those not yet approved.
   if (!store.state.hoodieBackV1) {
     store.state.hoodieBackV1 = true; store.save();
