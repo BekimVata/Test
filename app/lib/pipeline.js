@@ -385,6 +385,16 @@ function start() {
       store.log('Shqiponja', `retrying the telescope still with the telescope aimed at the moon.`);
     }
   }
+  // Re-check the clips already filmed against the relaxed check (4 Nov 22:00); only film what's missing.
+  if (!store.state.storyRecheckV1) {
+    store.state.storyRecheckV1 = true; store.save();
+    for (const it of store.state.items) if (it.kind === 'story' && it.story === 'wear' && it.status === 'rejected') {
+      const shots = {};
+      for (const [k, v] of Object.entries(it.shots || {})) if (v.stillOk) shots[k] = { still: v.still, tries: v.tries, check: v.check, stillOk: true };
+      store.updateItem(it, { status: 'approved_story', dropped: false, shots, errors: 0, retryAt: null, error: null });
+      store.log('Shqiponja', `re-checking the clips already filmed for ${stories.label(it)} with the relaxed video check.`);
+    }
+  }
   // Re-film Wear the Universe with the stronger video models and calmer motion (approved stills kept, 4 Nov 21:10).
   if (!store.state.storyRefilmV1) {
     store.state.storyRefilmV1 = true; store.save();

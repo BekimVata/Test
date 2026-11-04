@@ -145,8 +145,11 @@ async function filmAndEdit(it) {
     const M = ideogram.VIDEO_MODELS[model];
     const secs = Math.max(M.min, sh.secs);
     store.act('era', 'work', { label: `Filming ${sh.id} (${M.name})` });
+    const finName = `story-${it.id}-${sh.id}-${model}-fin.mp4`;
+    const already = fs.existsSync(path.join(config.DATA, 'files', finName)); // filmed before: re-check it for free instead of paying again
     let raw;
-    try { raw = await ideogram.video({ model, image: cur.still, duration: secs, costUSD: 0.12 * secs, agent: 'Era', fileName: `story-${it.id}-${sh.id}-${model}.mp4`,
+    if (already) store.log('Era', `re-using the ${M.name} ${sh.id} clip already filmed (no new charge).`);
+    else try { raw = await ideogram.video({ model, image: cur.still, duration: secs, costUSD: 0.12 * secs, agent: 'Era', fileName: `story-${it.id}-${sh.id}-${model}.mp4`,
       prompt: `${sh.motion} Realistic live-action footage. The person keeps exactly the same face, body proportions and height in every frame; limbs and hands stay natural and never stretch or melt. The hoodie and its printed artwork never change.${cur.clipFix ? ' Important fix from review: ' + cur.clipFix : ''}` }); }
     catch (e) {
       // A model that errors (not money-related) is skipped rather than retried for ever.
@@ -157,7 +160,7 @@ async function filmAndEdit(it) {
       store.log('Era', `${M.name} couldn't film the ${sh.id} shot (${(e.message || '').slice(0, 120)}). Trying the next model.`);
       continue;
     }
-    const fin = await video.finish(raw.file, `story-${it.id}-${sh.id}-${model}-fin.mp4`);
+    const fin = already ? finName : await video.finish(raw.file, finName);
     const stills = await video.frames(fin, 6, sh.secs);
     store.act('era', 'idle');
     let c = { ok: true, score: null, problems: [] };
