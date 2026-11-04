@@ -324,10 +324,9 @@ async function filmAndCheck(it) {
     const ref = [forCheck(it.lifestyle), forCheck(it.mockup)].filter(Boolean);
     check = await claude.askJSON({
       model: 'smart', agent: 'Shqiponja', what: 'video inspection', mockKind: 'check', maxTokens: 700,
-      system: 'You are the strict quality director of a premium clothing brand. Only realistic, flawless clips go out.',
+      system: 'You are the quality director of a premium clothing brand. You pass good, realistic clips and only reject clips with serious, obvious faults.',
       content: [...ref.map(imgBlock), ...stills.map(imgBlock), { type: 'text', text: `Image 1 is the approved first frame${ref.length > 1 ? ', image 2 the real product photo' : ''}; the remaining ${stills.length} images are frames taken in order through the finished ${secs}-second video. Intended action: ${it.copy.motion}
-Check every frame: 1) the person's face, body proportions, height and build stay consistent and natural (no stretching, shrinking, extra or bent limbs, melting hands); 2) the garment and its printed artwork stay the same as the first frame and the real product (no morphing, drifting or changing print); 3) the intended action actually happens and looks physically believable; 4) it looks like real filmed footage, not AI; 5) nothing important sits in the top or bottom 15% of the frame.
-Return JSON only: {"ok": true or false, "score": 1-10, "problems": ["short problems, empty if none"], "fix": "one sentence for the next take"}. ok must be false if any of checks 1-4 fail or score is below 8.` }]
+Also keep text-safe space: nothing important in the top or bottom 15% (note it, but don't fail for it). Judge it as someone scrolling TikTok on a phone would see it at normal speed. Fail it ONLY for a serious fault an ordinary viewer would notice straight away: A) the face or body obviously changes or warps; B) a hand or limb obviously melts, bends wrongly or multiplies; C) the printed artwork obviously turns into different shapes. Everything else is NOT a failure: softness, motion blur, background shimmer, small print wobble, fabric folds moving, a slightly unnatural detail, or the action being subtler than described. Note those in problems but still pass it. Return JSON only: {"ok": true or false, "score": 1-10, "problems": ["short problems, empty if none"], "fix": "one sentence for the next attempt"}. ok must be false only if A, B or C clearly fails or the score is below 6.` }]
     });
   }
   const sizeOk = info.width === 1080 && info.height === 1920;

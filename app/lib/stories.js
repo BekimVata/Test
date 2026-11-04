@@ -68,9 +68,8 @@ async function mockups(it) {
   store.updateItem(it, { back: await save(b.src, `story-${it.id}-back.jpg`), front: await save(f.src, `story-${it.id}-front.jpg`), etsyUrl: marketing.shareLink(info.etsyUrl), price: m.price });
 }
 
-async function check(content) {
-  return claude.askJSON({ model: 'smart', agent: 'Shqiponja', what: 'storyboard check', mockKind: 'check', maxTokens: 700,
-    system: 'You are the strict quality director of a premium clothing brand. Only realistic, flawless work goes out.', content });
+async function check(content, system = 'You are the strict quality director of a premium clothing brand. Only realistic, flawless work goes out.') {
+  return claude.askJSON({ model: 'smart', agent: 'Shqiponja', what: 'storyboard check', mockKind: 'check', maxTokens: 700, system, content });
 }
 const VERDICT = 'Return JSON only: {"ok": true or false, "score": 1-10, "problems": ["short problems, empty if none"], "fix": "one sentence for the next attempt"}. ok must be false if any check fails or the score is below 8.';
 
@@ -164,7 +163,7 @@ async function filmAndEdit(it) {
     let c = { ok: true, score: null, problems: [] };
     if (stills.length) c = await check([img(marketing.forCheck(cur.still)), img(sh.view === 'back' ? it.back : it.front), ...stills.map(img), { type: 'text', text:
       `Image 1 is the approved first frame, image 2 the real product. The other ${stills.length} images are frames, in order, from the ${sh.secs}-second part of the clip that will be used. Intended action: ${sh.motion}
-Judge it as a viewer scrolling TikTok on a phone would see it. Fail it only for problems that are clearly visible at a glance: A) the face or body visibly changes, stretches or warps; B) hands or limbs melt, bend wrongly or multiply; C) the printed artwork on the hoodie visibly morphs, swims or turns into different shapes; D) it obviously looks AI-generated. Minor things are NOT failures: slight softness or motion blur, small background shimmer, fabric folds shifting naturally, the action being subtler than described. Return JSON only: {"ok": true or false, "score": 1-10, "problems": ["short problems, empty if none"], "fix": "one sentence for the next attempt"}. ok must be false only if A, B, C or D fails or the score is below 7.` }]);
+Judge it as someone scrolling TikTok on a phone would see it at normal speed. Fail it ONLY for a serious fault an ordinary viewer would notice straight away: A) the face or body obviously changes or warps; B) a hand or limb obviously melts, bends wrongly or multiplies; C) the printed artwork obviously turns into different shapes. Everything else is NOT a failure: softness, motion blur, background shimmer, small print wobble, fabric folds moving, a slightly unnatural detail, or the action being subtler than described. Note those in problems but still pass it. Return JSON only: {"ok": true or false, "score": 1-10, "problems": ["short problems, empty if none"], "fix": "one sentence for the next attempt"}. ok must be false only if A, B or C clearly fails or the score is below 6.` }], 'You are the quality director of a premium clothing brand. You pass good, realistic clips and only reject clips with serious, obvious faults.');
     shots[sh.id] = { ...cur, takes: take, modelsTried: tried.concat(model), clip: fin, clipModel: model, clipCheck: c, clipOk: !!c.ok, clipFix: c.fix };
     store.updateItem(it, { shots });
     if (!c.ok) {
