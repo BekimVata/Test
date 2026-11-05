@@ -40,9 +40,10 @@ const STORIES = {
     title: 'Look Up · episode 1',
     caption: 'Look closer. The Star Map hoodie. Search Banians on Etsy. #christmas #lookup #moon #santa',
     shots: [
-      { type: 'ai', id: 'telescope', view: 'back', secs: 6, text: 'look at the moon', textUntil: 1.5,
-        still: 'Night. A man in his late twenties STANDS upright on a snowy hilltop, his back squarely to the camera, so the big printed artwork on the back of his hoodie is flat, large, centred between his shoulders and fully readable. A huge bright full moon hangs in the UPPER RIGHT of the sky. A brass telescope on a tall tripod stands just to his right, its tube angled steeply UP and to the right so it points straight at the moon; the eyepiece is at the lower, nearer end of the tube, at his eye, and he leans in to look through it. Above dark pine-covered mountains hangs a huge, bright full moon in a sky full of stars. The moon is empty.',
-        motion: 'He looks through the telescope; a small dark silhouette of Santa Claus in his sleigh pulled by reindeer flies slowly across the face of the full moon from left to right; stars twinkle and a little snow drifts down; the camera slowly pushes in. The man and his hoodie stay exactly the same.' },
+      // Cheaper version (5 Nov): no telescope, he just looks up at the moon; 4 seconds (Seedance's minimum).
+      { type: 'ai', id: 'moon', view: 'back', secs: 4, text: 'look up', textUntil: 1.5,
+        still: 'Night. A man in his late twenties STANDS still on a snowy hilltop with his back squarely to the camera, hands in his front hoodie pocket, head tilted slightly up towards the sky. The big printed artwork on the back of his hoodie is flat, large, centred between his shoulders and fully readable. A huge bright full moon hangs in the UPPER RIGHT of the sky above dark pine-covered mountains, in a sky full of stars. Across the lower part of the moon flies a tiny dark silhouette of Santa in his sleigh pulled by reindeer, small and subtle.',
+        motion: 'He stands completely still looking up at the moon, hands in his pocket; the tiny silhouette of Santa and his reindeer drifts slowly across the moon from left to right; stars twinkle and a little snow drifts down. The camera makes a very slow, smooth push-in. The man and his hoodie stay exactly the same.' },
       { type: 'photo', view: 'back', secs: 2, text: 'Star Map hoodie · search Banians on Etsy' }
     ]
   }
@@ -96,7 +97,7 @@ async function makeStills(it) {
     store.act('lule', 'idle');
     const c = await check([img(garment), img(other), ...(prev ? [img(marketing.forCheck(prev))] : []), img(marketing.forCheck(out.file)), { type: 'text', text:
       `Image 1 is the real ${sh.view} of the hoodie, image 2 the real ${sh.view === 'back' ? 'front' : 'back'}.${prev ? ' Image 3 is the earlier still of the same man.' : ''} The last image is a new still for a video. Brief: ${sh.still}
-Must pass: A) the hoodie colour and print match the real product (big artwork on the back, large and readable when the back is shown; only the small emblem on the front); B) it looks like a real photograph: natural proportions, face, hands and fabric, nothing AI-looking; C) the main action and setting of the brief are there (e.g. standing at the telescope, on a rooftop)${prev ? ', and it is clearly the same man' : ''}; D) no text, logos or watermarks.
+Must pass: A) the hoodie colour and print match the real product (big artwork on the back, large and readable when the back is shown; only the small emblem on the front); B) it looks like a real photograph: natural proportions, face, hands and fabric, nothing AI-looking; C) the main action and setting of the brief are there (e.g. looking up at the moon, on a rooftop)${prev ? ', and it is clearly the same man' : ''}; D) no text, logos or watermarks.
 Small differences in secondary details (exact lighting, background decorations, the precise pose) are NOT failures: mention them in problems but do not lower the score below 8 for them alone. Score the overall quality as a premium fashion photograph.
 Return JSON only: {"ok": true or false, "score": 1-10, "problems": ["short problems, empty if none"], "fix": "one sentence for the next attempt"}. ok must be false if A, B, C or D fails, or the overall quality is below 8.` }]);
     shots[sh.id] = { ...cur, still: out.file, tries, check: c, stillOk: !!c.ok, fix: c.fix };

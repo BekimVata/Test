@@ -385,6 +385,14 @@ function start() {
       store.log('Shqiponja', `retrying the telescope still with the telescope aimed at the moon.`);
     }
   }
+  // Look Up, cheaper version: no telescope, just looking up at the moon (5 Nov 00:37).
+  if (!store.state.lookupSimpleV1) {
+    store.state.lookupSimpleV1 = true; store.save();
+    for (const it of store.state.items) if (it.kind === 'story' && it.story === 'lookup' && it.status === 'rejected') {
+      store.updateItem(it, { status: 'queued', dropped: false, shots: {}, errors: 0, retryAt: null, error: null });
+      store.log('Shqiponja', `restarting ${stories.label(it)} without the telescope: he just looks up at the moon.`);
+    }
+  }
   // Re-check the clips already filmed against the relaxed check (4 Nov 22:00); only film what's missing.
   if (!store.state.storyRecheckV1) {
     store.state.storyRecheckV1 = true; store.save();
