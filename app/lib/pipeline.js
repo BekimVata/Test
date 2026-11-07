@@ -385,6 +385,13 @@ function start() {
       store.log('Shqiponja', `retrying the telescope still with the telescope aimed at the moon.`);
     }
   }
+  // Stop all paid AI work (7 Nov): the owner does marketing by hand from now on. Un-pause in the office to restart.
+  if (!store.state.spendStopV1) {
+    store.state.spendStopV1 = true; store.save();
+    config.update({ paused: true, marketing: { ...marketing.settings(), on: false, promosPerDay: 0, videosPerWeek: 0 } });
+    store.log('Shqiponja', 'office paused and AI marketing switched off, as you asked. No more API spending. Your 26 Etsy listings stay live.');
+    telegram.sendText('🦅 Office paused and AI marketing switched off, as you asked. No more API spending from here. Your Etsy listings stay live and orders still go through Printify.');
+  }
   // Look Up, cheaper version: no telescope, just looking up at the moon (5 Nov 00:37).
   if (!store.state.lookupSimpleV1) {
     store.state.lookupSimpleV1 = true; store.save();
